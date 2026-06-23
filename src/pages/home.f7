@@ -1,0 +1,35 @@
+<template>
+  <div class="page" data-name="home">
+    <!-- Top Navbar -->
+    <div class="navbar navbar-large">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner sliding">
+        <div class="title">Dogi Pay</div>
+        <div class="title-large">
+          <div class="title-large-text">Dogi Pay</div>
+        </div>
+      </div>
+    </div>
+    <!-- Toolbar-->
+    <div class="toolbar toolbar-bottom">
+      <div class="toolbar-inner">
+        <div class="toolbar-pane">
+          <a href="#" class="link">Left Link</a>
+          <a href="#" class="link">Right Link</a>
+        </div>
+      </div>
+    </div>
+    <!-- Scrollable page content-->
+    <div class="page-content">
+      <div class="block">
+        <p>Here is your blank Framework7 app. Let's see what we have here.</p>
+      </div>
+
+    </div>
+  </div>
+</template>
+<script>
+export default () => {
+  return $render;
+}
+</script>
