@@ -17,10 +17,10 @@
             </div>
         </div>
 
-        <div class="page-content" style="padding-top: 0;">
-            <div class="warna_dasar_sistem" style="height: 90px; border-radius: 0 0 24px 24px; position: absolute; left: 0; right: 0; top: 0; z-index: 1;"></div>
+        <div class="page-content sb-page-content">
+            <div class="warna_dasar_sistem sb-header-bg"></div>
 
-            <div class="card no-shadow" style="margin: 16px; margin-top: 20px; border-radius: 16px; position: relative; z-index: 2; box-shadow: 0px 4px 12px rgba(0,0,0,0.08);">
+            <div class="card no-shadow sb-card-saldo">
                 <div class="card-content card-content-padding">
                     <div class="display-flex justify-content-between align-items-center">
                         <span class="text-color-gray font14">Tabungan (IDR) <i class="icon f7-icons font14 text-color-gray">eye</i></span>
@@ -30,12 +30,12 @@
                         <span class="font22 font-weight-bold text-color-black">Rp 1.250.000</span>
                     </div>
                 </div>
-                <div class="card-footer" style="background: #fafafa; border-radius: 0 0 16px 16px;">
-                    <a href="#" class="link text-color-orange font-weight-bold" style="width: 50%; text-align: center; display: block;">
+                <div class="card-footer sb-card-footer">
+                    <a href="#" class="link text-color-orange font-weight-bold sb-footer-btn">
                         <i class="icon f7-icons font18 margin-right-half">plus_circle</i>Tambah Saldo
                     </a>
-                    <div style="width: 1px; height: 20px; background: #e0e0e0;"></div>
-                    <a href="#" class="link text-color-black" style="width: 50%; text-align: center; display: block;">
+                    <div class="sb-footer-divider"></div>
+                    <a href="#" class="link text-color-black sb-footer-btn">
                         <i class="icon f7-icons font18 margin-right-half">layers</i>Riwayat
                     </a>
                 </div>
