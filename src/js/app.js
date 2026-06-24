@@ -6,6 +6,7 @@ import '../css/framework7-custom.less';
 
 // Import Icons and App Custom Styles
 import '../css/icons.css';
+import '../css/custom.css';
 import '../css/app.less';
 // Import Cordova APIs
 import cordovaApp from './cordova-app.js';

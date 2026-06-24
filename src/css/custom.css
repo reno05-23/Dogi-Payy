@@ -1,0 +1,154 @@
+.besar-icon80 {
+    width: 80%;
+}
+
+.besar-icon100 {
+    width: 100%;
+}
+.font14 {
+    font-size: 14px;
+}
+.font16 {
+    font-size: 16px;
+}
+
+.font18 {
+    font-size: 18px;
+}
+
+.font20 {
+    font-size: 20px;
+}
+
+.font22 {
+    font-size: 22px;
+}
+
+.font32 {
+    font-size: 32px;
+}
+
+.radius15 {
+    border-radius: 15px;
+}
+
+.pad10 {
+    padding: 10px;
+}
+
+.ml-15 {
+    margin-left: 15px;
+}
+
+.mr-15 {
+    margin-right: 15px;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.gambar_tengah {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.kiri1 {
+    margin-left: 1%;
+}
+
+.kiri2 {
+    margin-left: 2%;
+}
+
+.kiri3 {
+    margin-left: 3%;
+}
+
+.kiri4 {
+    margin-left: 4%;
+}
+
+.kanan1 {
+    margin-right: 1%;
+}
+
+.kanan2 {
+    margin-right: 2%;
+}
+
+.kanan3 {
+    margin-right: 3%;
+}
+
+.kanan4 {
+    margin-right: 4%;
+}
+
+.besar-icon48p {
+    width: 48px;
+}
+
+.bawah10p {
+    margin-bottom: 10px;
+}
+
+.warna_dasar_sistem {
+    background: linear-gradient(135deg, #ff6b35, #7909b1);
+}
+
+.warna_dasar_putih {
+    background-color: #ecf0f1;
+}
+
+.warna_tulisan_hijau {
+    color: green;
+}
+
+.warna_tulisan_merah {
+    color: red;
+}
+
+/* tollbar bottom */
+.qris-toolbar {
+    background: #ffffff !important;
+    box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.08);
+    overflow: visible !important;
+}
+
+.qris-toolbar .toolbar-inner {
+    overflow: visible !important;
+}
+
+.tab-link-qr {
+    position: relative;
+    overflow: visible !important;
+    top: -12px;
+}
+
+.qr-icon-wrap {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #ff6b35, #7909b1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 4px 10px rgba(255, 79, 0, 0.4);
+    border: 4px solid #ffffff;
+    transition: transform 0.2s;
+}
+
+.tab-link-qr .qr-icon-wrap .icon {
+    color: #ffffff !important;
+    font-size: 24px;
+}
+
+.tab-link-qr .tabbar-label {
+    margin-top: 5px !important;
+}
+
+.tab-link-qr:active .qr-icon-wrap {
+    transform: scale(0.92);
+}

@@ -1,35 +1,71 @@
 <template>
-  <div class="page" data-name="home">
-    <!-- Top Navbar -->
-    <div class="navbar navbar-large">
-      <div class="navbar-bg"></div>
-      <div class="navbar-inner sliding">
-        <div class="title">Dogi Pay</div>
-        <div class="title-large">
-          <div class="title-large-text">Dogi Pay</div>
-        </div>
-      </div>
-    </div>
-    <!-- Toolbar-->
-    <div class="toolbar toolbar-bottom">
-      <div class="toolbar-inner">
-        <div class="toolbar-pane">
-          <a href="#" class="link">Left Link</a>
-          <a href="#" class="link">Right Link</a>
-        </div>
-      </div>
-    </div>
-    <!-- Scrollable page content-->
-    <div class="page-content">
-      <div class="block">
-        <p>Here is your blank Framework7 app. Let's see what we have here.</p>
-      </div>
+    <div class="page" data-name="home">
 
+        <div class="panel panel-left panel-floating">
+            <div class="view">
+                <div class="page">
+                    <div class="page-content">
+                        <div class="row grid grid-cols-3" style="margin-top: 15px;">
+                            <a href="#/" class="text-align-center font16 text-color-black panel-close" data-view=".view-main">
+                                <img src="#" class="besar-icon80" /><br />Film
+                            </a>
+                            <a href="#" class="text-align-center font16 text-color-black">
+                                <img src="#" class="besar-icon80" /><br />Atur
+                            </a>
+                            <a href="#" class="text-align-center font16 text-color-black">
+                                <img src="#" class="besar-icon80" /><br />Logout
+                            </a>
+                        </div>
+                        <div class="row grid grid-cols-3" style="margin-top: 15px;">
+                            <a href="#" class="text-align-center font16 text-color-black">
+                                <img src="#" class="besar-icon80" /><br />Info
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar tabbar toolbar-bottom tabbar-icons qris-toolbar">
+            <div class="toolbar-inner">
+                <a href="/" class="tab-link tab-link-active" data-route-tab-id="view-beranda">
+                    <i class="icon f7-icons">house</i>
+                    <span class="tabbar-label">Beranda</span>
+                </a>
+                <a href="#" class="tab-link">
+                    <i class="icon f7-icons">arrow_right_arrow_left</i>
+                    <span class="tabbar-label">Transfer</span>
+                </a>
+                
+                <a href="#" class="tab-link tab-link-qr">
+                    <div class="qr-icon-wrap">
+                        <i class="icon f7-icons">qrcode_viewfinder</i>
+                    </div>
+                    <span class="tabbar-label">Qris</span>
+                </a>
+                
+                <a href="#" class="tab-link" data-route-tab-id="view-transaksi">
+                    <i class="icon f7-icons">money_dollar<span class="badge color-red">5</span></i>
+                    <span class="tabbar-label">Transaksi</span>
+                </a>
+                <a href="#" class="tab-link" data-route-tab-id="view-tentang">
+                    <i class="icon f7-icons">person</i>
+                    <span class="tabbar-label">Saya</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="tabs tabs-routable">
+            <div class="tab page-content" id="view-beranda"></div>
+            <div class="tab page-content" id="view-transaksi"></div>
+            <div class="tab page-content" id="view-tentang"></div>
+        </div>
+        
     </div>
-  </div>
 </template>
+
 <script>
-export default () => {
-  return $render;
-}
+    export default (props, { $, $on }) => {
+        return $render;
+    }
 </script>
