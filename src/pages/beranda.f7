@@ -5,10 +5,18 @@
             <div class="navbar-inner warna_dasar_sistem">
                 <div class="left padding-left display-flex flex-direction-column align-items-flex-start justify-content-center">
                     <span class="text-color-white font14 font-weight-bold">Halo, {{ users }}</span>
-                    <span class="text-color-white font14 margin-top-6xs" style="opacity: 0.85;">Rek: 9012345678</span>
+                    <div class="display-flex align-items-center margin-top-6xs" style="opacity: 0.85;">
+                        <span class="text-color-white font14">Rek: 9012345678</span>
+                        <span @click="${copyRek}" style="margin-left: 6px; cursor: pointer;"
+                            class="display-flex align-items-center">
+                            <i class="icon f7-icons font14 text-color-white">
+                                ${ copyDone ? 'checkmark_circle' : 'square_on_square' }
+                            </i>
+                        </span>
+                    </div>
                 </div>
                 <div class="right">
-                    <a href="#" class="link icon-only text-color-white">
+                    <a href="/notifikasi/" class="link icon-only text-color-white">
                         <i class="icon f7-icons font20">bell</i>
                     </a>
                     <a href="#" class="link icon-only text-color-white panel-open" data-panel="left">
@@ -25,31 +33,26 @@
                     <div class="display-flex justify-content-between align-items-center">
                         <div class="display-flex align-items-center">
                             <span class="text-color-gray font14">Tabungan (IDR)</span>
-                            <span @click="${toggleSaldo}" style="margin-left:8px;cursor:pointer;">
-                                <i class="icon f7-icons font18 text-color-gray">
-                                    ${ saldoVisible ? 'eye' : 'eye_slash' }
-                                </i>
-                            </span>
-                        </div>
-                        <div class="display-flex align-items-center">
-                            <span class="text-color-black font13 font-weight-bold">9012345678</span>
-                            <span @click="${copyRek}" style="margin-left:8px;cursor:pointer;">
-                                <i class="icon f7-icons font18 ${ copyDone ? 'copy-done' : 'copy-idle' }">
-                                    ${ copyDone ? 'checkmark_circle' : 'square_on_square' }
-                                </i>
-                            </span>
                         </div>
                     </div>
-                    <div class="margin-top-half">
+
+                    <div class="margin-top-half display-flex align-items-center">
                         <span class="font22 font-weight-bold text-color-black">
                             ${ saldoVisible ? 'Rp 1.250.000' : 'Rp ••••••' }
+                        </span>
+                        <span @click="${toggleSaldo}" style="margin-left: 8px; cursor: pointer;"
+                            class="display-flex align-items-center">
+                            <i class="icon f7-icons font20 text-color-gray">
+                                ${ saldoVisible ? 'eye' : 'eye_slash' }
+                            </i>
                         </span>
                     </div>
                 </div>
                 <div class="card-footer sb-card-footer">
                     <span class="sb-footer-btn" style="cursor:pointer;">
                         <i class="icon f7-icons font18 text-color-orange">plus_circle</i>
-                        <span class="font14 text-color-orange font-weight-bold" style="margin-left:6px;">Tambah Saldo</span>
+                        <span class="font14 text-color-orange font-weight-bold" style="margin-left:6px;">Tambah
+                            Saldo</span>
                     </span>
                     <div class="sb-footer-divider"></div>
                     <span class="sb-footer-btn" style="cursor:pointer;">
@@ -58,61 +61,55 @@
                     </span>
                 </div>
             </div>
-
             <!-- Layanan Utama -->
             <div class="card no-shadow no-border sb-card-layanan">
                 <div class="card-content card-content-padding">
                     <h3 class="margin-none margin-bottom text-color-black font14 font-weight-bold">Layanan Utama</h3>
-                    <div class="display-flex justify-content-around text-align-center" style="width:100%;box-sizing:border-box;">
-
-                        <a href="#view-transfer" class="tab-link display-flex flex-direction-column align-items-center" style="width:25%;">
+                    <div class="display-flex justify-content-around text-align-center"
+                        style="width:100%;box-sizing:border-box;">
+                        <a href="/transfer/" class="tab-link display-flex flex-direction-column align-items-center"
+                            style="width:25%;">
                             <div class="display-flex align-items-center justify-content-center bg-color-red-light text-color-red margin-bottom-half"
                                 style="width:45px;height:45px;border-radius:50%;">
                                 <i class="icon f7-icons font20">arrow_right_arrow_left</i>
                             </div>
                             <span class="font12 font-weight-semibold text-color-gray">Transfer</span>
                         </a>
-
-                        <a href="#view-qris" class="tab-link display-flex flex-direction-column align-items-center" style="width:25%;">
+                        <a href="/qris/" class="tab-link display-flex flex-direction-column align-items-center"
+                            style="width:25%;">
                             <div class="display-flex align-items-center justify-content-center bg-color-purple-light text-color-purple margin-bottom-half"
                                 style="width:45px;height:45px;border-radius:50%;">
                                 <i class="icon f7-icons font20">qrcode_viewfinder</i>
                             </div>
                             <span class="font12 font-weight-semibold text-color-gray">QRIS</span>
                         </a>
-
-                        <a href="#view-tabungan" class="tab-link display-flex flex-direction-column align-items-center" style="width:25%;">
+                        <a href="/tabungan/" class="tab-link display-flex flex-direction-column align-items-center"
+                            style="width:25%;">
                             <div class="display-flex align-items-center justify-content-center bg-color-orange-light text-color-orange margin-bottom-half"
                                 style="width:45px;height:45px;border-radius:50%;">
                                 <i class="icon f7-icons font20">creditcard</i>
                             </div>
                             <span class="font12 font-weight-semibold text-color-gray">Tabungan</span>
                         </a>
-
-                        <a href="#" class="popup-open display-flex flex-direction-column align-items-center"
-                            data-popup="#popup-topup" style="width:25%;">
+                        <a href="/topup/" class="popup-open display-flex flex-direction-column align-items-center"
+                            data-popup="#topup" style="width:25%;">
                             <div class="display-flex align-items-center justify-content-center bg-color-blue-light text-color-blue margin-bottom-half"
                                 style="width:45px;height:45px;border-radius:50%;">
                                 <i class="icon f7-icons font20">plus</i>
                             </div>
                             <span class="font12 font-weight-semibold text-color-gray">Top Up</span>
                         </a>
-
                     </div>
                 </div>
             </div>
-
-            <!-- Swiper Banner -->
-            <swiper-container pagination="true" class="demo-swiper-multiple ml-15 mr-15"
-                space-between="20" loop="true" autoplay-delay="2500">
+            <swiper-container pagination="true" class="demo-swiper-multiple ml-15 mr-15" space-between="20" loop="true"
+                autoplay-delay="2500">
                 <swiper-slide class="radius15 swiper-banner-size bg-swiper-1"></swiper-slide>
                 <swiper-slide class="radius15 swiper-banner-size bg-swiper-2"></swiper-slide>
                 <swiper-slide class="radius15 swiper-banner-size bg-swiper-3"></swiper-slide>
                 <swiper-slide class="radius15 swiper-banner-size bg-swiper-4"></swiper-slide>
                 <swiper-slide class="radius15 swiper-banner-size bg-swiper-5"></swiper-slide>
             </swiper-container>
-
-            <!-- Aktivitas Terakhir -->
             <div class="aktivitas-section">
                 <div class="aktivitas-header">
                     <h3 class="aktivitas-title">Aktivitas Terakhir</h3>
@@ -121,7 +118,6 @@
                     </button>
                 </div>
                 <div class="aktivitas-list el-history-list-compact">
-
                     <div class="trx-item">
                         <div class="trx-icon-wrap transfer">
                             <i class="icon f7-icons font20">arrow_right_arrow_left</i>
@@ -135,7 +131,6 @@
                             <div class="trx-status sukses">Berhasil</div>
                         </div>
                     </div>
-
                     <div class="trx-item">
                         <div class="trx-icon-wrap topup">
                             <i class="icon f7-icons font20">plus_circle</i>
@@ -149,7 +144,6 @@
                             <div class="trx-status sukses">Berhasil</div>
                         </div>
                     </div>
-
                     <div class="trx-item">
                         <div class="trx-icon-wrap qris">
                             <i class="icon f7-icons font20">qrcode_viewfinder</i>
@@ -163,7 +157,6 @@
                             <div class="trx-status sukses">Berhasil</div>
                         </div>
                     </div>
-
                     <div class="trx-item">
                         <div class="trx-icon-wrap tabungan">
                             <i class="icon f7-icons font20">money_dollar_circle</i>
@@ -177,7 +170,6 @@
                             <div class="trx-status sukses">Berhasil</div>
                         </div>
                     </div>
-
                     <div class="trx-item">
                         <div class="trx-icon-wrap lainnya">
                             <i class="icon f7-icons font20">creditcard</i>
@@ -191,10 +183,8 @@
                             <div class="trx-status gagal">Gagal</div>
                         </div>
                     </div>
-
                 </div>
             </div>
-
         </div>
     </div>
 </template>
@@ -202,11 +192,11 @@
 <script>
     export default (props, { $f7, $update }) => {
 
-        const noRek     = '9012345678';
+        const noRek = '9012345678';
         const saldoAsli = 'Rp 1.250.000';
 
         let saldoVisible = true;
-        let copyDone     = false;
+        let copyDone = false;
 
         function toggleSaldo(e) {
             e.preventDefault();

@@ -16,23 +16,23 @@
                     <i class="icon f7-icons">house</i>
                     <span class="tabbar-label">Beranda</span>
                 </a>
-                <a href="#" class="tab-link">
+                <a href="/transfer/" class="tab-link" data-route-tab-id="view-transfer">
                     <i class="icon f7-icons">arrow_right_arrow_left</i>
                     <span class="tabbar-label">Transfer</span>
                 </a>
-                
-                <a href="#" class="tab-link tab-link-qr">
+
+                <a href="/qris/" class="tab-link tab-link-qr" data-route-tab-id="view-qris">
                     <div class="qr-icon-wrap">
                         <i class="icon f7-icons">qrcode_viewfinder</i>
                     </div>
                     <span class="tabbar-label">Qris</span>
                 </a>
-                
-                <a href="#" class="tab-link" data-route-tab-id="view-transaksi">
+
+                <a href="/tabungan/" class="tab-link" data-route-tab-id="view-tabungan">
                     <i class="icon f7-icons">creditcard</i>
                     <span class="tabbar-label">Tabungan</span>
                 </a>
-                <a href="#" class="tab-link" data-route-tab-id="view-tentang">
+                <a href="/profil/" class="tab-link" data-route-tab-id="view-profil">
                     <i class="icon f7-icons">person</i>
                     <span class="tabbar-label">Saya</span>
                 </a>
@@ -41,10 +41,12 @@
 
         <div class="tabs tabs-routable">
             <div class="tab page-content" id="view-beranda"></div>
-            <div class="tab page-content" id="view-transaksi"></div>
-            <div class="tab page-content" id="view-tentang"></div>
+            <div class="tab page-content" id="view-transfer"></div>
+            <div class="tab page-content" id="view-qris"></div>
+            <div class="tab page-content" id="view-tabungan"></div>
+            <div class="tab page-content" id="view-profil"></div>
         </div>
-        
+
     </div>
 </template>
 

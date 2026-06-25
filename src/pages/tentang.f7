@@ -1,0 +1,29 @@
+<template>
+    <div class="page" data-name="tentang">
+        <div class="navbar no-shadow no-hairline" style="height: 70px;">
+            <div class="navbar-bg warna_dasar_sistem"></div>
+            <div class="navbar-inner warna_dasar_sistem">
+                <div class="left">
+                    <a href="#" class="link back text-color-white icon-only">
+                        <i class="icon f7-icons font20">arrow_left</i>
+                    </a>
+                </div>
+                <div class="title text-color-white font16 font-weight-bold">Tentang Aplikasi</div>
+                <div class="right"></div>
+            </div>
+        </div>
+
+        <div
+            class="page-content display-flex flex-direction-column align-items-center justify-content-center bg-color-white">
+            <i class="icon f7-icons font40 text-color-gray margin-bottom">info_circle</i>
+            <div class="text-color-gray font16 font-weight-semibold">Halaman Tentang</div>
+            <div class="text-color-gray font12 margin-top-xs">Informasi aplikasi dalam pengembangan</div>
+        </div>
+    </div>
+</template>
+
+<script>
+    export default (props, { $update }) => {
+        return $render;
+    }
+</script>
