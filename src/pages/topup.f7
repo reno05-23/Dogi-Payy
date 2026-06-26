@@ -1,25 +1,151 @@
 <template>
-    <div class="popup" id="topup">
-        <div class="view">
-            <div class="page">
-                <div class="navbar no-shadow no-hairline" style="height: 70px;">
-                    <div class="navbar-bg warna_dasar_sistem"></div>
-                    <div class="navbar-inner warna_dasar_sistem">
-                        <div class="title text-color-white font16 font-weight-bold">Top Up Saldo</div>
-                        <div class="right">
-                            <a href="#"
-                                class="link popup-close text-color-white font14 font-weight-semibold padding-right">Batal</a>
-                        </div>
-                    </div>
-                </div>
-                <div
-                    class="page-content display-flex flex-direction-column align-items-center justify-content-center bg-color-white">
-                    <i class="icon f7-icons font40 text-color-gray margin-bottom">plus_circle</i>
-                    <div class="text-color-gray font16 font-weight-semibold">Metode Isi Saldo</div>
-                    <div class="text-color-gray font12 margin-top-xs">Pilihan Virtual Account/Gerai dalam pengembangan
-                    </div>
-                </div>
+  <div class="popup" id="topup" @popup:open="${handlePopupOpened}" @popup:closed="${handlePopupClosed}">
+    <div class="view">
+      <div class="page">
+        <div class="navbar no-shadow no-hairline" style="height: 70px;">
+          <div class="navbar-bg warna_dasar_sistem"></div>
+          <div class="navbar-inner warna_dasar_sistem">
+            <div class="title text-color-white font16 font-weight-bold">Top Up</div>
+            <div class="right">
+              <a href="#" class="link popup-close text-color-white font14 font-weight-semibold" @click="${notifyTopupClosed}">Tutup</a>
             </div>
+          </div>
         </div>
+
+        <div class="page-content page-content-padding">
+          <div class="card no-shadow radius20" style="background: linear-gradient(135deg, #4b6cb7, #1f2a6d); color:#fff; overflow:hidden;">
+            <div class="card-content display-flex flex-direction-column align-items-center text-align-center" style="padding: 22px 18px;">
+              <div class="font12 opacity-70" style="letter-spacing: 0.4px;">Hello</div>
+              <div class="font22 font-weight-bold margin-top-xs">${userName}</div>
+              <div class="font12 opacity-70 margin-top-xs">Nomor terdaftar</div>
+              <div class="font20 font-weight-bold margin-top-xs">${userPhone}</div>
+              <a class="button button-fill button-small margin-top" style="width: 100%; max-width: 240px;" @click="${copyPhone}">
+                Salin Nomor HP
+              </a>
+              <div class="font12 opacity-70 margin-top-xs" style="max-width: 260px;">
+                Serahkan nomor HP atau QR code ini ke kasir merchant untuk top up saldo.
+              </div>
+            </div>
+          </div>
+
+          <div class="card no-shadow radius20 margin-top" style="background: #ffffff;">
+            <div class="card-content text-align-center">
+              <div class="font14 font-weight-bold margin-bottom">QR Code Top Up</div>
+              <div class="topup-qr-box" style="width: 220px; height: 220px; margin: 0 auto; border-radius: 22px; background: #f4f6fb; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 20px rgba(0,0,0,0.05);">
+                <canvas id="topup-qr-canvas" width="200" height="200"></canvas>
+              </div>
+              <div class="font12 text-color-gray margin-top-xs" style="max-width: 250px; margin-left: auto; margin-right: auto;">
+                QR code pengguna ini bisa digunakan merchant untuk memproses top up. Kalau kasir tidak scan, berikan nomor HP di atas.
+              </div>
+            </div>
+          </div>
+
+          <div class="card no-shadow radius20 margin-top">
+            <div class="card-content">
+              <div class="font14 font-weight-bold">Cara Top Up</div>
+              <div class="font12 text-color-gray margin-top-xs">
+                1. Beritahu kasir nomor HP yang terdaftar di DogiPay.<br />
+                2. Kasir dapat scan QR atau input nomor HP kamu.<br />
+                3. Saldo akan otomatis masuk setelah pembayaran berhasil.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </template>
+
+<script>
+  import qrcode from 'qrcode-generator';
+  import { getUser } from '../js/config.js';
+
+  export default (props, { $f7, $on, $update }) => {
+    const user = getUser();
+    let userName = user ? user.name.split(' ')[0] : 'Pengguna';
+    let userPhone = user ? user.phone : '-';
+    let qrText = user ? (user.qr_code || `DogiPay:${user.phone}`) : 'DogiPay:unknown';
+
+    function renderQR() {
+      const canvas = document.getElementById('topup-qr-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const size = 220;
+      ctx.clearRect(0, 0, size, size);
+
+      const qr = qrcode(0, 'M');
+      qr.addData(qrText);
+      qr.make();
+
+      const moduleCount = qr.getModuleCount();
+      const cellSize = size / moduleCount;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#1a1a2e';
+      for (let row = 0; row < moduleCount; row++) {
+        for (let col = 0; col < moduleCount; col++) {
+          if (qr.isDark(row, col)) {
+            ctx.fillRect(
+              Math.round(col * cellSize),
+              Math.round(row * cellSize),
+              Math.ceil(cellSize),
+              Math.ceil(cellSize)
+            );
+          }
+        }
+      }
+    }
+
+    function copyPhone() {
+      if (!userPhone || userPhone === '-') return;
+      navigator.clipboard?.writeText(userPhone)
+        .then(() => {
+          $f7.toast.create({ text: 'Nomor HP disalin', position: 'bottom', closeTimeout: 1500 }).open();
+        });
+    }
+
+    function notifyTopupClosed() {
+      window.dispatchEvent(new CustomEvent('dogipay-topup-closed', {
+        detail: { popupId: 'topup' }
+      }));
+    }
+
+    function notifyTopupOpened() {
+      window.dispatchEvent(new CustomEvent('dogipay-topup-opened', {
+        detail: { popupId: 'topup' }
+      }));
+    }
+
+    function handlePopupOpened() {
+      notifyTopupOpened();
+    }
+
+    function handlePopupClosed() {
+      notifyTopupClosed();
+    }
+
+    $on('popupOpen', handlePopupOpened);
+    $on('popupClosed', handlePopupClosed);
+    $on('pageBeforeRemove', handlePopupClosed);
+
+    $on('pageAfterIn', () => {
+      notifyTopupOpened();
+      renderQR();
+      const popup = document.getElementById('topup');
+      if (popup) {
+        popup.addEventListener('popup:open', handlePopupOpened);
+        popup.addEventListener('popup:closed', handlePopupClosed);
+      }
+    });
+
+    $on('pageBeforeRemove', () => {
+      const popup = document.getElementById('topup');
+      if (popup) {
+        popup.removeEventListener('popup:open', handlePopupOpened);
+        popup.removeEventListener('popup:closed', handlePopupClosed);
+      }
+    });
+
+    return $render;
+  }
+</script>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page" data-name="beranda">
     <div class="navbar no-shadow no-hairline" style="height: 70px;">
       <div class="navbar-bg warna_dasar_sistem"></div>
@@ -43,7 +43,7 @@
             <span class="font22 font-weight-bold text-color-black">
               ${ saldoVisible
                 ? (isLoading ? 'Memuat...' : 'Rp ' + formatRupiah(saldo))
-                : 'Rp ••••••' }
+                : 'Rp â€¢â€¢â€¢â€¢â€¢â€¢' }
             </span>
             <span @click="${ toggleSaldo }" style="margin-left: 8px; cursor: pointer;"
               class="display-flex align-items-center">
@@ -169,7 +169,7 @@
 </template>
 
 <script>
-  import { apiFetch, getUser, clearSession } from '../js/config.js';
+  import { API_BASE, apiFetch, getUser, clearSession } from '../js/config.js';
 
   export default (props, { $f7, $update, $on }) => {
 
@@ -178,15 +178,35 @@
     let userPhone = user ? user.phone : '-';
     let saldo     = user ? parseFloat(user.saldo) : 0;
 
-    let saldoVisible    = true;
-    let copyDone        = false;
-    let isLoading       = false;
-    let isLoadingHistory = true;
-    let history         = [];
+    let saldoVisible      = true;
+    let copyDone          = false;
+    let isLoading         = false;
+    let isRefreshingSaldo = false;
+    let isLoadingHistory  = true;
+    let history           = [];
+    let saldoWatcher      = null;
+    let lastTopupRefreshAt = 0;
+    let topupCloseRefreshTimer = null;
+    let topupRealtimeWatcher = null;
+    let topupEventSource = null;
 
-    // ── Format ───────────────────────────────────
+    // â”€â”€ Format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function formatRupiah(angka) {
       return Number(angka).toLocaleString('id-ID');
+    }
+
+    function applyProfileData(data) {
+      saldo = parseFloat(data.saldo);
+      userName = data.name.split(' ')[0];
+      userPhone = data.phone;
+      localStorage.setItem('user', JSON.stringify(data));
+    }
+
+    function applySaldoUpdate(newSaldo) {
+      const currentUser = getUser() || {};
+      saldo = parseFloat(newSaldo);
+      localStorage.setItem('user', JSON.stringify({ ...currentUser, saldo }));
+      $update();
     }
 
     function formatTanggal(dateStr) {
@@ -205,9 +225,10 @@
       }
     }
 
-    // ── Refresh Saldo dari API ────────────────────
+    // â”€â”€ Refresh Saldo dari API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     async function refreshSaldo() {
-      if (isLoading) return;
+      if (isRefreshingSaldo) return false;
+      isRefreshingSaldo = true;
       isLoading = true;
       $update();
 
@@ -219,6 +240,7 @@
           userPhone = data.data.phone;
           // Update localStorage
           localStorage.setItem('user', JSON.stringify(data.data));
+          return true;
         } else if (data.message?.includes('Sesi')) {
           // Token expired
           handleExpired();
@@ -231,11 +253,101 @@
         }).open();
       } finally {
         isLoading = false;
+        isRefreshingSaldo = false;
         $update();
+      }
+
+      return false;
+    }
+
+    async function silentRefreshSaldo() {
+      if (isRefreshingSaldo) return;
+      isRefreshingSaldo = true;
+
+      try {
+        const data = await apiFetch('/api/profile');
+        if (data.success) {
+          const newSaldo = parseFloat(data.data.saldo);
+          if (newSaldo !== saldo) {
+            applyProfileData(data.data);
+            $update();
+          }
+        } else if (data.message?.includes('Sesi')) {
+          handleExpired();
+        }
+      } catch (err) {
+        console.error('Silent refresh saldo failed:', err);
+      } finally {
+        isRefreshingSaldo = false;
       }
     }
 
-    // ── Load Riwayat dari API ─────────────────────
+    function startSaldoWatcher() {
+      stopSaldoWatcher();
+      saldoWatcher = setInterval(() => {
+        silentRefreshSaldo();
+      }, 15000);
+    }
+
+    function stopSaldoWatcher() {
+      if (saldoWatcher) {
+        clearInterval(saldoWatcher);
+        saldoWatcher = null;
+      }
+    }
+
+    function startTopupRealtimeWatcher() {
+      stopTopupRealtimeWatcher();
+      silentRefreshSaldo();
+      topupRealtimeWatcher = setInterval(() => {
+        silentRefreshSaldo();
+      }, 2000);
+    }
+
+    function stopTopupRealtimeWatcher() {
+      if (topupRealtimeWatcher) {
+        clearInterval(topupRealtimeWatcher);
+        topupRealtimeWatcher = null;
+      }
+    }
+
+    function startTopupEventSource() {
+      stopTopupEventSource();
+
+      const token = localStorage.getItem('token');
+      if (!token || typeof EventSource === 'undefined') return;
+
+      const url = `${API_BASE}/api/topup-events?token=${encodeURIComponent(token)}`;
+      topupEventSource = new EventSource(url);
+
+      topupEventSource.addEventListener('topup_success', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.saldoAfter !== undefined) {
+            applySaldoUpdate(data.saldoAfter);
+          } else {
+            silentRefreshSaldo();
+          }
+          loadHistory();
+        } catch (err) {
+          silentRefreshSaldo();
+        }
+      });
+
+      topupEventSource.onerror = () => {
+        stopTopupEventSource();
+        setTimeout(startTopupEventSource, 5000);
+      };
+    }
+
+    function stopTopupEventSource() {
+      if (topupEventSource) {
+        topupEventSource.close();
+        topupEventSource = null;
+      }
+    }
+
+    // â”€â”€ Load Riwayat dari API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     async function loadHistory() {
       isLoadingHistory = true;
       $update();
@@ -253,14 +365,14 @@
       }
     }
 
-    // ── Toggle Saldo ──────────────────────────────
+    // â”€â”€ Toggle Saldo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function toggleSaldo(e) {
       e.preventDefault();
       saldoVisible = !saldoVisible;
       $update();
     }
 
-    // ── Copy Nomor HP ─────────────────────────────
+    // â”€â”€ Copy Nomor HP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function copyPhone(e) {
       e.preventDefault();
       const doSuccess = () => {
@@ -291,7 +403,7 @@
       document.body.removeChild(el);
     }
 
-    // ── Token Expired ─────────────────────────────
+    // â”€â”€ Token Expired â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function handleExpired() {
       clearSession();
       localStorage.removeItem('has_logged_in');
@@ -302,7 +414,7 @@
       );
     }
 
-    // ── Logout ────────────────────────────────────
+    // â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function doLogout() {
       $f7.dialog.confirm(
         'Kamu akan keluar dari DogiPay.',
@@ -314,13 +426,96 @@
         }
       );
     }
+// â”€â”€ Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function isTopupPopupCloseEvent(eventOrPopup) {
+  if (eventOrPopup?.detail?.popupId === 'topup') return true;
 
-    // ── Lifecycle ─────────────────────────────────
-    $on('pageAfterIn', () => {
-      refreshSaldo();
-      loadHistory();
-    });
+  const popupEl = eventOrPopup?.el || eventOrPopup?.target || eventOrPopup?.currentTarget;
+  if (!popupEl) return false;
+
+  return popupEl.id === 'topup' || !!popupEl.closest?.('#topup');
+}
+
+function onTopupPopupClosed(eventOrPopup) {
+  if (!isTopupPopupCloseEvent(eventOrPopup)) return;
+
+  const now = Date.now();
+  if (now - lastTopupRefreshAt < 500) return;
+  lastTopupRefreshAt = now;
+
+  stopTopupRealtimeWatcher();
+  refreshSaldoAfterTopupClosed();
+}
+
+function onTopupPopupOpened(eventOrPopup) {
+  if (!isTopupPopupCloseEvent(eventOrPopup)) return;
+  startTopupRealtimeWatcher();
+}
+
+function refreshSaldoAfterTopupClosed() {
+  const saldoBeforeRefresh = saldo;
+  let retryCount = 0;
+
+  if (topupCloseRefreshTimer) {
+    clearTimeout(topupCloseRefreshTimer);
+    topupCloseRefreshTimer = null;
+  }
+
+  const runRefresh = async () => {
+    retryCount += 1;
+    await refreshSaldo();
+    await loadHistory();
+
+    if (saldo !== saldoBeforeRefresh || retryCount >= 6) return;
+
+    topupCloseRefreshTimer = setTimeout(runRefresh, 1500);
+  };
+
+  runRefresh();
+}
+
+function onPageAfterIn() {
+  refreshSaldo();
+  loadHistory();
+  startSaldoWatcher();
+  startTopupEventSource();
+}
+
+function onPageBeforeOut() {
+  stopSaldoWatcher();
+  stopTopupEventSource();
+}
+
+$on('pageInit', () => {
+  $f7.on('popupOpen', onTopupPopupOpened);
+  $f7.on('popup:open', onTopupPopupOpened);
+  $f7.on('popupClosed', onTopupPopupClosed);
+  $f7.on('popup:closed', onTopupPopupClosed);
+  window.addEventListener('dogipay-topup-opened', onTopupPopupOpened);
+  window.addEventListener('dogipay-topup-closed', onTopupPopupClosed);
+});
+
+$on('pageAfterIn', onPageAfterIn);
+$on('pageBeforeOut', onPageBeforeOut);
+
+$on('pageBeforeRemove', () => {
+  // Bersihkan listener saat halaman di-destroy
+  $f7.off('popupOpen', onTopupPopupOpened);
+  $f7.off('popup:open', onTopupPopupOpened);
+  $f7.off('popupClosed', onTopupPopupClosed);
+  $f7.off('popup:closed', onTopupPopupClosed);
+  window.removeEventListener('dogipay-topup-opened', onTopupPopupOpened);
+  window.removeEventListener('dogipay-topup-closed', onTopupPopupClosed);
+  if (topupCloseRefreshTimer) clearTimeout(topupCloseRefreshTimer);
+  stopTopupRealtimeWatcher();
+  stopTopupEventSource();
+  stopSaldoWatcher();
+});
 
     return $render;
   }
 </script>
+
+
+
+

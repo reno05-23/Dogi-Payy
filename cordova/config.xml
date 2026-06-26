@@ -12,6 +12,8 @@
     <allow-navigation href="*" />
     <access origin="*" />
 
+     <engine name="android" spec="14.0.1" />
+
     <platform name="android">
       <preference name="StatusBarOverlaysWebView" value="false" />
       <preference name="android-minSdkVersion" value="26" />
