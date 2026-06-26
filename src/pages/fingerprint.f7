@@ -1,0 +1,244 @@
+<template>
+  <div class="page page-fingerprint" data-name="fingerprint">
+    <div class="page-content fingerprint-content">
+
+      <!-- Top Section -->
+      <div class="fp-top-section">
+        <div class="fp-logo-wrap">
+          <i class="icon f7-icons font36 text-color-white">wallet</i>
+        </div>
+        <h1 class="fp-app-name">DogiPay</h1>
+        <p class="fp-welcome">Halo, <strong>${ userName }</strong></p>
+      </div>
+
+      <!-- Card -->
+      <div class="fp-card">
+
+        <!-- State: Fingerprint -->
+        ${ !showPin ? `
+        <div class="fp-main-section">
+          <div class="fp-icon-wrap ${ fpStatus }">
+            <i class="icon f7-icons font48">
+              ${ fpStatus === 'success' ? 'checkmark_circle_fill' :
+                 fpStatus === 'error'   ? 'xmark_circle_fill' :
+                 'touchid' }
+            </i>
+          </div>
+          <h2 class="fp-title">Verifikasi Identitas</h2>
+          <p class="fp-subtitle">
+            ${ fpStatus === 'success' ? 'Verifikasi berhasil!' :
+               fpStatus === 'error'   ? 'Verifikasi gagal, coba lagi' :
+               'Gunakan sidik jari untuk masuk' }
+          </p>
+          <button class="button button-fill fp-btn" @click="${ scanFingerprint }">
+            <i class="icon f7-icons">touchid</i>
+            Pindai Sidik Jari
+          </button>
+          <button class="button fp-btn-outline" @click="${ showPinInput }">
+            <i class="icon f7-icons">keypad</i>
+            Gunakan PIN
+          </button>
+        </div>
+        ` : `
+        <!-- State: PIN Fallback -->
+        <div class="fp-main-section">
+          <div class="fp-icon-wrap">
+            <i class="icon f7-icons font48">keypad</i>
+          </div>
+          <h2 class="fp-title">Masukkan PIN</h2>
+          <p class="fp-subtitle">Masukkan PIN 6 digit kamu untuk masuk</p>
+
+          <!-- PIN Dots Display -->
+          <div class="pin-dots-wrap">
+            <div class="pin-dots">
+              ${ [0,1,2,3,4,5].map(i => `
+                <div class="pin-dot ${ pinValue.length > i ? 'filled' : '' }"></div>
+              `).join('') }
+            </div>
+          </div>
+
+          <!-- Numpad -->
+          <div class="numpad">
+            ${ ['1','2','3','4','5','6','7','8','9','','0','del'].map(key => `
+              <button
+                class="numpad-btn ${ key === '' ? 'numpad-empty' : '' } ${ key === 'del' ? 'numpad-del' : '' }"
+                ${ key === '' ? 'disabled' : '' }
+                onclick="handleNumpad('${ key }')"
+              >
+                ${ key === 'del'
+                  ? '<i class="icon f7-icons">delete_left</i>'
+                  : key }
+              </button>
+            `).join('') }
+          </div>
+
+          ${ pinError ? `
+            <p class="pin-error">
+              <i class="icon f7-icons font14">exclamationmark_circle</i>
+              PIN salah, silakan coba lagi
+            </p>
+          ` : '' }
+
+          <button class="button fp-btn-outline" @click="${ backToFingerprint }">
+            <i class="icon f7-icons">touchid</i>
+            Kembali ke Sidik Jari
+          </button>
+        </div>
+        ` }
+
+        <!-- Logout link -->
+        <div class="fp-logout-wrap">
+          <a @click="${ doLogout }" class="fp-logout-link">
+            <i class="icon f7-icons font14">rectangle_portrait_and_arrow_right</i>
+            Ganti Akun
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  import { getUser, clearSession, API_BASE } from '../js/config.js';
+
+  export default (props, { $f7, $update, $on }) => {
+
+    const user = getUser();
+    const userName = user ? user.name.split(' ')[0] : 'Pengguna';
+
+    let showPin    = false;
+    let pinValue   = '';
+    let pinError   = false;
+    let fpStatus   = 'idle'; // idle | success | error
+
+    // ── Fingerprint ──────────────────────────────
+    function scanFingerprint() {
+      fpStatus = 'idle';
+      pinError = false;
+      $update();
+
+      // Cek apakah plugin tersedia
+      if (typeof Fingerprint === 'undefined') {
+        // Di browser/emulator tanpa plugin → langsung ke PIN
+        $f7.toast.create({
+          text: 'Fingerprint tidak tersedia di perangkat ini',
+          position: 'bottom',
+          closeTimeout: 2000
+        }).open();
+        showPin = true;
+        $update();
+        return;
+      }
+
+      Fingerprint.show({
+        title: 'Verifikasi DogiPay',
+        subtitle: 'Gunakan sidik jari untuk masuk',
+        description: '',
+        fallbackButtonTitle: 'Gunakan PIN',
+        disableBackup: false,
+      },
+      // Sukses
+      () => {
+        fpStatus = 'success';
+        $update();
+        setTimeout(() => {
+          $f7.views.main.router.navigate('/', { reloadAll: true });
+        }, 800);
+      },
+      // Gagal / fallback
+      (err) => {
+        // Jika user pilih fallback PIN
+        if (err.code === -3 || err.message?.includes('fallback')) {
+          showPin = true;
+          $update();
+          return;
+        }
+        fpStatus = 'error';
+        $update();
+      });
+    }
+
+    // ── PIN Fallback ──────────────────────────────
+    function showPinInput() {
+      showPin  = true;
+      pinValue = '';
+      pinError = false;
+      $update();
+    }
+
+    function backToFingerprint() {
+      showPin  = false;
+      pinValue = '';
+      pinError = false;
+      fpStatus = 'idle';
+      $update();
+    }
+
+    // Expose ke window agar bisa dipanggil dari onclick di template
+    window.handleNumpad = function(key) {
+      if (key === 'del') {
+        pinValue = pinValue.slice(0, -1);
+        pinError = false;
+        $update();
+        return;
+      }
+      if (pinValue.length >= 6) return;
+      pinValue += key;
+      $update();
+
+      // Auto submit kalau sudah 6 digit
+      if (pinValue.length === 6) {
+        setTimeout(() => verifyPin(), 100);
+      }
+    };
+
+    async function verifyPin() {
+      const token = localStorage.getItem('token');
+      try {
+        // Verifikasi PIN via re-login ke API
+        const res = await fetch(`${API_BASE}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: user.phone, pin: pinValue })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          // Update token & data terbaru
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.data));
+          $f7.views.main.router.navigate('/', { reloadAll: true });
+        } else {
+          pinError = true;
+          pinValue = '';
+          $update();
+        }
+      } catch (err) {
+        pinError = true;
+        pinValue = '';
+        $update();
+      }
+    }
+
+    // ── Logout ────────────────────────────────────
+    function doLogout() {
+      $f7.dialog.confirm(
+        'Kamu akan keluar dan harus login ulang.',
+        'Ganti Akun',
+        () => {
+          clearSession();
+          localStorage.removeItem('has_logged_in');
+          $f7.views.main.router.navigate('/login/', { reloadAll: true });
+        }
+      );
+    }
+
+    // Auto trigger fingerprint saat halaman masuk
+    $on('pageAfterIn', () => {
+      setTimeout(() => scanFingerprint(), 400);
+    });
+
+    return $render;
+  }
+</script>
