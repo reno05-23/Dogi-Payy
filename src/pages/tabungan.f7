@@ -3,19 +3,77 @@
         <div class="navbar no-shadow no-hairline" style="height: 70px;">
             <div class="navbar-bg warna_dasar_sistem"></div>
             <div class="navbar-inner warna_dasar_sistem">
-                <div class="left">
-                    <a href="/" class="link back text-color-white icon-only">
-                        <i class="icon f7-icons font20">arrow_left</i>
-                    </a>
-                </div>
-                <div class="title text-color-white font16 font-weight-bold">Kantong Tabungan</div>
-                <div class="right"></div>
+                <div class="left"><a href="#" class="link back text-color-white"><i class="icon f7-icons font20">arrow_left</i></a></div>
+                <div class="title text-color-white font16 font-weight-bold">Buat Tabungan Baru</div>
             </div>
         </div>
-        <div class="page-content display-flex flex-direction-column align-items-center justify-content-center">
-            <i class="icon f7-icons font40 text-color-gray margin-bottom">creditcard</i>
-            <div class="text-color-gray font16 font-weight-semibold">Halaman Tabungan</div>
-            <div class="text-color-gray font12 margin-top-xs">Fitur ini masih dalam pengembangan</div>
+
+        <div class="page-content" style="padding-top: 70px;">
+            <div class="list no-hairlines-md">
+                <ul>
+                    <li class="item-content item-input">
+                        <div class="item-inner">
+                            <div class="item-title item-label">Total Target Nominal (IDR)</div>
+                            <div class="item-input-wrap"><input type="number" id="input-target" placeholder="Contoh: 1000000"></div>
+                        </div>
+                    </li>
+                    <li class="item-content item-input">
+                        <div class="item-inner">
+                            <div class="item-title item-label">Jumlah Cicilan (Kali)</div>
+                            <div class="item-input-wrap"><input type="number" id="input-kali" placeholder="Contoh: 10"></div>
+                        </div>
+                    </li>
+                    <li class="item-content item-input">
+                        <div class="item-inner">
+                            <div class="item-title item-label">Frekuensi Tagihan</div>
+                            <div class="item-input-wrap">
+                                <select id="input-frekuensi">
+                                    <option value="daily">Per Hari</option>
+                                    <option value="weekly">Per Minggu</option>
+                                    <option value="monthly" selected>Per Bulan</option>
+                                    <option value="yearly">Per Tahun</option>
+                                </select>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="block">
+                <div class="card bg-color-orange text-color-white">
+                    <div class="card-content card-content-padding">
+                        <div class="font14">Estimasi Tagihan Anda:</div>
+                        <div class="font24 font-weight-bold" id="label-tagihan">Rp 0</div>
+                    </div>
+                </div>
+                <button class="button button-fill button-large margin-top" @click="${buatTabungan}">
+                    Buat Rencana Tabungan
+                </button>
+            </div>
         </div>
     </div>
 </template>
+
+<script>
+export default (props, { $f7, $update }) => {
+    // Logika perhitungan otomatis
+    const updateEstimasi = () => {
+        const target = document.getElementById('input-target').value || 0;
+        const kali = document.getElementById('input-kali').value || 1;
+        const tagihan = Math.ceil(target / kali);
+        document.getElementById('label-tagihan').innerText = `Rp ${tagihan.toLocaleString('id-ID')}`;
+    };
+
+    // Panggil fungsi setiap user mengetik
+    const initListeners = () => {
+        document.getElementById('input-target').addEventListener('input', updateEstimasi);
+        document.getElementById('input-kali').addEventListener('input', updateEstimasi);
+    };
+
+    const buatTabungan = async () => {
+        // Logika API untuk kirim ke backend
+    };
+
+    return $render;
+}
+</script>

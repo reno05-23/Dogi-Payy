@@ -1,4 +1,5 @@
 <template>
+<<<<<<< HEAD
   <div class="page" data-name="beranda">
     <div class="navbar no-shadow no-hairline" style="height: 70px;">
       <div class="navbar-bg warna_dasar_sistem"></div>
