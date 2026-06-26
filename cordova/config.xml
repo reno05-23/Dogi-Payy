@@ -4,18 +4,19 @@
     <description>
         A sample Apache Cordova application that responds to the deviceready event.
     </description>
-    <author email="dev@cordova.apache.org" href="https://cordova.apache.org">
-        Apache Cordova Team
+    <author email="dogipay@gmail.com" href="https://dogipay.renoaries.my.id">
+        DogiPay Team
     </author>
     <content src="index.html" />
-    <allow-intent href="http://*/*" />
-    <allow-intent href="https://*/*" />
-
+    <allow-intent href="*" />
     <allow-navigation href="*" />
+    <access origin="*" />
 
     <platform name="android">
       <preference name="StatusBarOverlaysWebView" value="false" />
-      <preference name="android-minSdkVersion" value="24" />
+      <preference name="android-minSdkVersion" value="26" />
+      <preference name="android-maxSdkVersion" value="36" />
+      <preference name="android-targetSdkVersion" value="35" />
       <preference name="SplashMaintainAspectRatio" value="true" />
       <splash density="land-hdpi" src="res/screen/android/drawable-hdpi/screen.png" />
       <splash density="land-mdpi" src="res/screen/android/drawable-mdpi/screen.png" />
@@ -33,6 +34,7 @@
       <icon density="xhdpi" src="res/icon/android/mipmap-xhdpi/ic_launcher.png" />
       <icon density="xxhdpi" src="res/icon/android/mipmap-xxhdpi/ic_launcher.png" />
       <icon density="xxxhdpi" src="res/icon/android/mipmap-xxxhdpi/ic_launcher.png" />
+      <preference name="android-permissions" value="INTERNET" />
     </platform>
 
 
@@ -46,4 +48,6 @@
     <preference name="Allow3DTouchLinkPreview" value="false" />
     <preference name="CordovaWebViewEngine" value="CDVWKWebViewEngine" />
     <preference name="AllowInlineMediaPlayback" value="true" />
+    <preference name="AndroidLaunchMode" value="singleInstance" />
+    <preference name="LoadUrlTimeoutValue" value="600000" />
 </widget>
