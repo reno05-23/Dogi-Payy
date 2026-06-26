@@ -1,30 +1,30 @@
 <template>
-  <div class="page" data-name="beranda">
-    <div class="navbar no-shadow no-hairline" style="height: 70px;">
-      <div class="navbar-bg warna_dasar_sistem"></div>
-      <div class="navbar-inner warna_dasar_sistem">
-        <div class="left padding-left display-flex flex-direction-column align-items-flex-start justify-content-center">
-          <span class="text-color-white font14 font-weight-bold">Halo, ${ userName }</span>
-          <div class="display-flex align-items-center margin-top-6xs" style="opacity: 0.85;">
-            <span class="text-color-white font12">HP: ${ userPhone }</span>
-            <span @click="${ copyPhone }" style="margin-left: 6px; cursor: pointer;"
-              class="display-flex align-items-center">
-              <i class="icon f7-icons font14 text-color-white">
-                ${ copyDone ? 'checkmark_circle' : 'square_on_square' }
-              </i>
-            </span>
-          </div>
+    <div class="page" data-name="beranda">
+        <div class="navbar no-shadow no-hairline" style="height: 70px;">
+            <div class="navbar-bg warna_dasar_sistem"></div>
+            <div class="navbar-inner warna_dasar_sistem">
+                <div class="left padding-left display-flex flex-direction-column align-items-flex-start justify-content-center">
+                    <span class="text-color-white font14 font-weight-bold">Halo, {{ users }}</span>
+                    <div class="display-flex align-items-center margin-top-6xs" style="opacity: 0.85;">
+                        <span class="text-color-white font14">Rek: 9012345678</span>
+                        <span @click="${copyRek}" style="margin-left: 6px; cursor: pointer;"
+                            class="display-flex align-items-center">
+                            <i class="icon f7-icons font14 text-color-white">
+                                ${ copyDone ? 'checkmark_circle' : 'square_on_square' }
+                            </i>
+                        </span>
+                    </div>
+                </div>
+                <div class="right">
+                    <a href="/notifikasi/" class="link icon-only text-color-white">
+                        <i class="icon f7-icons font20">bell</i>
+                    </a>
+                    <a href="#" class="link icon-only text-color-white panel-open" data-panel="left">
+                        <i class="icon f7-icons font20">ellipsis_vertical</i>
+                    </a>
+                </div>
+            </div>
         </div>
-        <div class="right">
-          <a href="/notifikasi/" class="link icon-only text-color-white">
-            <i class="icon f7-icons font20">bell</i>
-          </a>
-          <a @click="${ doLogout }" class="link icon-only text-color-white">
-            <i class="icon f7-icons font20">rectangle_portrait_and_arrow_right</i>
-          </a>
-        </div>
-      </div>
-    </div>
 
     <div class="page-content sb-page-content">
       <div class="warna_dasar_sistem sb-header-bg"></div>
