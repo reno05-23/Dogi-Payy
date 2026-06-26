@@ -3,65 +3,61 @@
         <div class="navbar no-shadow no-hairline" style="height: 70px;">
             <div class="navbar-bg warna_dasar_sistem"></div>
             <div class="navbar-inner warna_dasar_sistem">
-                <div class="left padding-left display-flex flex-direction-column align-items-flex-start justify-content-center">
-                    <span class="text-color-white font14 font-weight-bold">Halo, {{ users }}</span>
+                <div
+                    class="left padding-left display-flex flex-direction-column align-items-flex-start justify-content-center">
+                    <span class="text-color-white font14 font-weight-bold">Halo, ${ userName }</span>
                     <div class="display-flex align-items-center margin-top-6xs" style="opacity: 0.85;">
-                        <span class="text-color-white font14">Rek: 9012345678</span>
-                        <span @click="${copyRek}" style="margin-left: 6px; cursor: pointer;"
-                            class="display-flex align-items-center">
+                        <span class="text-color-white font14">Rek: ${ userPhone }</span>
+                        <a href="#" @click="copyRek" style="margin-left: 6px;"
+                            class="link display-flex align-items-center">
                             <i class="icon f7-icons font14 text-color-white">
                                 ${ copyDone ? 'checkmark_circle' : 'square_on_square' }
                             </i>
-                        </span>
+                        </a>
                     </div>
                 </div>
                 <div class="right">
                     <a href="/notifikasi/" class="link icon-only text-color-white">
-                        <i class="icon f7-icons font20">bell</i>
-                    </a>
-                    <a href="#" class="link icon-only text-color-white panel-open" data-panel="left">
-                        <i class="icon f7-icons font20">ellipsis_vertical</i>
+                        <i class="icon f7-icons font24">bell</i>
                     </a>
                 </div>
             </div>
         </div>
-
         <div class="page-content sb-page-content">
             <div class="warna_dasar_sistem sb-header-bg"></div>
             <div class="card no-shadow sb-card-saldo">
                 <div class="card-content card-content-padding">
                     <div class="display-flex justify-content-between align-items-center">
                         <div class="display-flex align-items-center">
-                            <span class="text-color-gray font14">Tabungan (IDR)</span>
+                            <span class="text-color-gray font14">Saldo Utama (IDR)</span>
                         </div>
                     </div>
-
                     <div class="margin-top-half display-flex align-items-center">
                         <span class="font22 font-weight-bold text-color-black">
-                            ${ saldoVisible ? 'Rp 1.250.000' : 'Rp ••••••' }
+                            ${ saldoVisible ? formatRupiah(userSaldo) : 'Rp •••••••' }
                         </span>
-                        <span @click="${toggleSaldo}" style="margin-left: 8px; cursor: pointer;"
-                            class="display-flex align-items-center">
+                        <a href="#" @click="toggleSaldo" style="margin-left: 8px;"
+                            class="link display-flex align-items-center">
                             <i class="icon f7-icons font20 text-color-gray">
                                 ${ saldoVisible ? 'eye' : 'eye_slash' }
                             </i>
-                        </span>
+                        </a>
                     </div>
                 </div>
                 <div class="card-footer sb-card-footer">
-                    <span class="sb-footer-btn" style="cursor:pointer;">
+                    <!-- <a href="/topup/" class="sb-footer-btn link text-color-orange" style="cursor:pointer;">
                         <i class="icon f7-icons font18 text-color-orange">plus_circle</i>
                         <span class="font14 text-color-orange font-weight-bold" style="margin-left:6px;">Tambah
                             Saldo</span>
-                    </span>
+                    </a> -->
                     <div class="sb-footer-divider"></div>
-                    <span class="sb-footer-btn" style="cursor:pointer;">
+                    <a href="/riwayat/" class="sb-footer-btn link text-color-black" style="cursor:pointer;">
                         <i class="icon f7-icons font18 text-color-black">layers</i>
                         <span class="font14 text-color-black" style="margin-left:6px;">Riwayat</span>
-                    </span>
+                    </a>
                 </div>
             </div>
-            <!-- Layanan Utama -->
+
             <div class="card no-shadow no-border sb-card-layanan">
                 <div class="card-content card-content-padding">
                     <h3 class="margin-none margin-bottom text-color-black font14 font-weight-bold">Layanan Utama</h3>
@@ -91,8 +87,8 @@
                             </div>
                             <span class="font12 font-weight-semibold text-color-gray">Tabungan</span>
                         </a>
-                        <a href="/topup/" class="popup-open display-flex flex-direction-column align-items-center"
-                            data-popup="#topup" style="width:25%;">
+                        <a href="/topup/" class="tab-link display-flex flex-direction-column align-items-center"
+                            style="width:25%;">
                             <div class="display-flex align-items-center justify-content-center bg-color-blue-light text-color-blue margin-bottom-half"
                                 style="width:45px;height:45px;border-radius:50%;">
                                 <i class="icon f7-icons font20">plus</i>
@@ -102,87 +98,41 @@
                     </div>
                 </div>
             </div>
+
             <swiper-container pagination="true" class="demo-swiper-multiple ml-15 mr-15" space-between="20" loop="true"
                 autoplay-delay="2500">
                 <swiper-slide class="radius15 swiper-banner-size bg-swiper-1"></swiper-slide>
                 <swiper-slide class="radius15 swiper-banner-size bg-swiper-2"></swiper-slide>
-                <swiper-slide class="radius15 swiper-banner-size bg-swiper-3"></swiper-slide>
-                <swiper-slide class="radius15 swiper-banner-size bg-swiper-4"></swiper-slide>
-                <swiper-slide class="radius15 swiper-banner-size bg-swiper-5"></swiper-slide>
             </swiper-container>
+
             <div class="aktivitas-section">
                 <div class="aktivitas-header">
                     <h3 class="aktivitas-title">Aktivitas Terakhir</h3>
-                    <button class="popup-open aktivitas-lihat-semua" data-popup="#popup-history">
-                        Lihat Semua
-                    </button>
+                    <a href="/riwayat/" class="aktivitas-lihat-semua">Lihat Semua</a>
                 </div>
+
                 <div class="aktivitas-list el-history-list-compact">
+                    ${ isLoadingHistory ? $h`
+                    <div class="text-align-center padding text-color-gray">Memuat riwayat...</div>
+                    ` : historyList.length === 0 ? $h`
+                    <div class="text-align-center padding text-color-gray">Belum ada aktivitas.</div>
+                    ` : historyList.map(item => $h`
                     <div class="trx-item">
-                        <div class="trx-icon-wrap transfer">
-                            <i class="icon f7-icons font20">arrow_right_arrow_left</i>
+                        <div class="trx-icon-wrap ${getIconClass(item.type)}">
+                            <i class="icon f7-icons font20">${getIconName(item.type)}</i>
                         </div>
                         <div class="trx-info">
-                            <div class="trx-nama">Transfer ke Budi Santoso</div>
-                            <div class="trx-tanggal">Hari ini, 10:32</div>
+                            <div class="trx-nama">${item.title}</div>
+                            <div class="trx-tanggal">${formatTanggal(item.created_at)}</div>
                         </div>
                         <div>
-                            <div class="trx-nominal keluar">-Rp 150.000</div>
-                            <div class="trx-status sukses">Berhasil</div>
+                            <div class="trx-status sukses font12 text-align-right"
+                                style="white-space: normal; line-height: 1.2;">
+                                ${item.message}
+                            </div>
                         </div>
                     </div>
-                    <div class="trx-item">
-                        <div class="trx-icon-wrap topup">
-                            <i class="icon f7-icons font20">plus_circle</i>
-                        </div>
-                        <div class="trx-info">
-                            <div class="trx-nama">Top Up Saldo</div>
-                            <div class="trx-tanggal">Hari ini, 09:15</div>
-                        </div>
-                        <div>
-                            <div class="trx-nominal masuk">+Rp 500.000</div>
-                            <div class="trx-status sukses">Berhasil</div>
-                        </div>
-                    </div>
-                    <div class="trx-item">
-                        <div class="trx-icon-wrap qris">
-                            <i class="icon f7-icons font20">qrcode_viewfinder</i>
-                        </div>
-                        <div class="trx-info">
-                            <div class="trx-nama">Bayar QRIS Indomaret</div>
-                            <div class="trx-tanggal">Kemarin, 18:44</div>
-                        </div>
-                        <div>
-                            <div class="trx-nominal keluar">-Rp 45.000</div>
-                            <div class="trx-status sukses">Berhasil</div>
-                        </div>
-                    </div>
-                    <div class="trx-item">
-                        <div class="trx-icon-wrap tabungan">
-                            <i class="icon f7-icons font20">money_dollar_circle</i>
-                        </div>
-                        <div class="trx-info">
-                            <div class="trx-nama">Bunga Tabungan</div>
-                            <div class="trx-tanggal">Kemarin, 00:00</div>
-                        </div>
-                        <div>
-                            <div class="trx-nominal masuk">+Rp 1.200</div>
-                            <div class="trx-status sukses">Berhasil</div>
-                        </div>
-                    </div>
-                    <div class="trx-item">
-                        <div class="trx-icon-wrap lainnya">
-                            <i class="icon f7-icons font20">creditcard</i>
-                        </div>
-                        <div class="trx-info">
-                            <div class="trx-nama">Pembayaran Tagihan</div>
-                            <div class="trx-tanggal">23 Jun, 14:20</div>
-                        </div>
-                        <div>
-                            <div class="trx-nominal keluar">-Rp 200.000</div>
-                            <div class="trx-status gagal">Gagal</div>
-                        </div>
-                    </div>
+                    `)}
                 </div>
             </div>
         </div>
@@ -190,14 +140,116 @@
 </template>
 
 <script>
-    export default (props, { $f7, $update }) => {
-
-        const noRek = '9012345678';
-        const saldoAsli = 'Rp 1.250.000';
-
+    export default (props, { $f7, $update, $on }) => {
+        // Variabel State Framework7
+        let userName = 'Memuat...';
+        let userPhone = 'Memuat...';
+        let userSaldo = 0;
+        let historyList = [];
         let saldoVisible = true;
         let copyDone = false;
+        let isLoadingHistory = true;
 
+        // Konfigurasi API
+        const API_URL = 'https://dogipay.renoaries.my.id/api';
+
+        // Fungsi Format Rupiah
+        const formatRupiah = (angka) => {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(angka);
+        };
+
+        // Fungsi Format Tanggal
+        const formatTanggal = (isoString) => {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        };
+
+        // Logika Ikon Dinamis
+        const getIconClass = (type) => {
+            if (type === 'topup' || type === 'transfer_in') return 'topup'; // Warna hijau/biru
+            if (type === 'transfer_out') return 'transfer'; // Warna merah/oranye
+            return 'lainnya';
+        };
+
+        const getIconName = (type) => {
+            if (type === 'topup') return 'plus_circle';
+            if (type === 'transfer_in') return 'arrow_down_circle';
+            if (type === 'transfer_out') return 'arrow_up_circle';
+            return 'bell';
+        };
+
+        // Menarik Data Profil dari Backend
+        const loadProfile = async () => {
+            const token = localStorage.getItem('dogipay_token');
+
+            if (!token) {
+                $f7.dialog.alert('Sesi Anda telah habis. Silakan login kembali.', 'Peringatan', () => {
+                    $f7.views.main.router.navigate('/login/');
+                });
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/profile`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    userName = result.data.name;
+                    userPhone = result.data.phone;
+                    userSaldo = result.data.saldo;
+                    $update(); // Beritahu Framework7 untuk render ulang UI
+                } else {
+                    localStorage.removeItem('dogipay_token');
+                    $f7.views.main.router.navigate('/login/');
+                }
+            } catch (error) {
+                console.error("Gagal memuat profil", error);
+                showToast('Koneksi terputus.');
+            }
+        };
+
+        // Menarik Data Riwayat dari Backend
+        const loadHistory = async () => {
+            const token = localStorage.getItem('dogipay_token');
+
+            // Jika tidak ada token, matikan loading agar tulisan tidak tersangkut
+            if (!token) {
+                isLoadingHistory = false;
+                $update();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/history`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // Ambil maksimal 4 aktivitas terakhir untuk di dashboard
+                    historyList = result.data.slice(0, 4);
+                }
+            } catch (error) {
+                console.error("Gagal memuat riwayat", error);
+            } finally {
+                isLoadingHistory = false;
+                $update();
+            }
+        };
+
+        // Panggil fungsi secara langsung agar tereksekusi dengan pasti (bahkan saat di-refresh)
+        loadProfile();
+        loadHistory();
+
+        // Fungsi Aksi UI (Dikembalikan ke format standard function agar terbaca oleh template F7)
         function toggleSaldo(e) {
             e.preventDefault();
             saldoVisible = !saldoVisible;
@@ -206,7 +258,6 @@
 
         function copyRek(e) {
             e.preventDefault();
-
             const doSuccess = () => {
                 copyDone = true;
                 $update();
@@ -218,9 +269,7 @@
             };
 
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(noRek)
-                    .then(doSuccess)
-                    .catch(() => fallbackCopy(doSuccess));
+                navigator.clipboard.writeText(userPhone).then(doSuccess).catch(() => fallbackCopy(doSuccess));
             } else {
                 fallbackCopy(doSuccess);
             }
@@ -228,7 +277,7 @@
 
         function fallbackCopy(onSuccess) {
             const el = document.createElement('textarea');
-            el.value = noRek;
+            el.value = userPhone;
             el.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
             document.body.appendChild(el);
             el.focus();
