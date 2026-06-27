@@ -124,27 +124,31 @@
       notifyTopupClosed();
     }
 
-    $on('popupOpen', handlePopupOpened);
-    $on('popupClosed', handlePopupClosed);
-    $on('pageBeforeRemove', handlePopupClosed);
-
     $on('pageAfterIn', () => {
-      notifyTopupOpened();
       renderQR();
-      const popup = document.getElementById('topup');
-      if (popup) {
-        popup.addEventListener('popup:open', handlePopupOpened);
-        popup.addEventListener('popup:closed', handlePopupClosed);
-      }
     });
 
-    $on('pageBeforeRemove', () => {
-      const popup = document.getElementById('topup');
-      if (popup) {
-        popup.removeEventListener('popup:open', handlePopupOpened);
-        popup.removeEventListener('popup:closed', handlePopupClosed);
-      }
-    });
+    // $on('popupOpen', handlePopupOpened);
+    // $on('popupClosed', handlePopupClosed);
+    // $on('pageBeforeRemove', handlePopupClosed);
+
+    // $on('pageAfterIn', () => {
+    //   notifyTopupOpened();
+    //   renderQR();
+    //   const popup = document.getElementById('topup');
+    //   if (popup) {
+    //     popup.addEventListener('popup:open', handlePopupOpened);
+    //     popup.addEventListener('popup:closed', handlePopupClosed);
+    //   }
+    // });
+
+    // $on('pageBeforeRemove', () => {
+    //   const popup = document.getElementById('topup');
+    //   if (popup) {
+    //     popup.removeEventListener('popup:open', handlePopupOpened);
+    //     popup.removeEventListener('popup:closed', handlePopupClosed);
+    //   }
+    // });
 
     return $render;
   }

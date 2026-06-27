@@ -313,14 +313,22 @@
 
     function startTopupEventSource() {
       stopTopupEventSource();
-
       const token = localStorage.getItem('token');
-      if (!token || typeof EventSource === 'undefined') return;
+      if (!token || typeof EventSource === 'undefined') {
+        console.warn('[SSE] EventSource tidak tersedia atau token kosong');
+        return;
+      }
 
       const url = `${API_BASE}/api/topup-events?token=${encodeURIComponent(token)}`;
+      console.log('[SSE] Connecting to:', url); // ← tambahkan ini
       topupEventSource = new EventSource(url);
 
+      topupEventSource.addEventListener('connected', (e) => {
+        console.log('[SSE] Connected!', e.data); // ← dan ini
+      });
+
       topupEventSource.addEventListener('topup_success', (event) => {
+        console.log('[SSE] topup_success received:', event.data); // ← dan ini
         try {
           const data = JSON.parse(event.data);
           if (data.saldoAfter !== undefined) {
@@ -334,7 +342,8 @@
         }
       });
 
-      topupEventSource.onerror = () => {
+      topupEventSource.onerror = (e) => {
+        console.warn('[SSE] Error/disconnect, reconnecting in 5s...', e);
         stopTopupEventSource();
         setTimeout(startTopupEventSource, 5000);
       };
@@ -348,6 +357,7 @@
     }
 
     // â”€â”€ Load Riwayat dari API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    
     async function loadHistory() {
       isLoadingHistory = true;
       $update();
@@ -427,51 +437,25 @@
       );
     }
 // â”€â”€ Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Lifecycle ──────────────────────────────────
+// ── Lifecycle ──────────────────────────────────
 function isTopupPopupCloseEvent(eventOrPopup) {
   if (eventOrPopup?.detail?.popupId === 'topup') return true;
-
   const popupEl = eventOrPopup?.el || eventOrPopup?.target || eventOrPopup?.currentTarget;
   if (!popupEl) return false;
-
   return popupEl.id === 'topup' || !!popupEl.closest?.('#topup');
 }
 
 function onTopupPopupClosed(eventOrPopup) {
   if (!isTopupPopupCloseEvent(eventOrPopup)) return;
-
   const now = Date.now();
   if (now - lastTopupRefreshAt < 500) return;
   lastTopupRefreshAt = now;
-
-  stopTopupRealtimeWatcher();
-  refreshSaldoAfterTopupClosed();
+  refreshSaldo().then(() => loadHistory());
 }
 
 function onTopupPopupOpened(eventOrPopup) {
   if (!isTopupPopupCloseEvent(eventOrPopup)) return;
-  startTopupRealtimeWatcher();
-}
-
-function refreshSaldoAfterTopupClosed() {
-  const saldoBeforeRefresh = saldo;
-  let retryCount = 0;
-
-  if (topupCloseRefreshTimer) {
-    clearTimeout(topupCloseRefreshTimer);
-    topupCloseRefreshTimer = null;
-  }
-
-  const runRefresh = async () => {
-    retryCount += 1;
-    await refreshSaldo();
-    await loadHistory();
-
-    if (saldo !== saldoBeforeRefresh || retryCount >= 6) return;
-
-    topupCloseRefreshTimer = setTimeout(runRefresh, 1500);
-  };
-
-  runRefresh();
 }
 
 function onPageAfterIn() {
@@ -486,20 +470,39 @@ function onPageBeforeOut() {
   stopTopupEventSource();
 }
 
+// ← GANTI SEMUA $on JADI INI:
 $on('pageInit', () => {
+  console.log('[Beranda] pageInit fired');
+
   $f7.on('popupOpen', onTopupPopupOpened);
   $f7.on('popup:open', onTopupPopupOpened);
   $f7.on('popupClosed', onTopupPopupClosed);
   $f7.on('popup:closed', onTopupPopupClosed);
   window.addEventListener('dogipay-topup-opened', onTopupPopupOpened);
   window.addEventListener('dogipay-topup-closed', onTopupPopupClosed);
+
+  window.addEventListener('dogipay-saldo-update', (e) => {
+    applySaldoUpdate(e.detail.saldoAfter);
+    loadHistory();
+  });
+
+  $f7.on('tabShow', (tabEl) => {
+    if (tabEl.id === 'view-beranda') {
+      console.log('[Beranda] tab:show fired');
+      onPageAfterIn();
+    }
+  });
+
+  $f7.on('tabHide', (tabEl) => {
+    if (tabEl.id === 'view-beranda') {
+      onPageBeforeOut();
+    }
+  });
+
+  onPageAfterIn();
 });
 
-$on('pageAfterIn', onPageAfterIn);
-$on('pageBeforeOut', onPageBeforeOut);
-
 $on('pageBeforeRemove', () => {
-  // Bersihkan listener saat halaman di-destroy
   $f7.off('popupOpen', onTopupPopupOpened);
   $f7.off('popup:open', onTopupPopupOpened);
   $f7.off('popupClosed', onTopupPopupClosed);
@@ -511,6 +514,7 @@ $on('pageBeforeRemove', () => {
   stopTopupEventSource();
   stopSaldoWatcher();
 });
+
 
     return $render;
   }

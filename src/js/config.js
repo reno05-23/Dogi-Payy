@@ -1,5 +1,5 @@
 // URL base API backend
-export const API_BASE = 'https://dogipay.renoaries.my.id'; 
+export const API_BASE = 'https://dogipay.renoaries.my.id';
 
 // Helper: semua request yang butuh token JWT
 export async function apiFetch(endpoint, options = {}) {
