@@ -107,13 +107,17 @@
 
         const data = await res.json();
 
-        if (data.success) {
+       if (data.success) {
           // Simpan token & data user ke localStorage
           saveSession(data.token, data.data);
 
           // Tandai bahwa user sudah pernah login
-          // (untuk trigger fingerprint saat buka app lagi)
           localStorage.setItem('has_logged_in', 'true');
+
+          // ← TAMBAHKAN INI
+          if (window.startSSE) {
+            window.startSSE();
+          }
 
           // Toast selamat datang
           $f7.toast.create({
@@ -124,8 +128,7 @@
 
           // Masuk ke halaman utama
           $f7.views.main.router.navigate('/', { reloadAll: true });
-
-        } else {
+        }else {
           $f7.dialog.alert(data.message, 'Login Gagal');
         }
 
