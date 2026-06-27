@@ -13,9 +13,209 @@
             </div>
         </div>
         <div class="page-content display-flex flex-direction-column align-items-center justify-content-center">
-            <i class="icon f7-icons font40 text-color-gray margin-bottom">qrcode_viewfinder</i>
-            <div class="text-color-gray font16 font-weight-semibold">Halaman QRIS</div>
-            <div class="text-color-gray font12 margin-top-xs">Fitur ini masih dalam pengembangan</div>
+            <i id="qris-icon" class="icon f7-icons font40 warna_text_sistem margin-bottom">qrcode_viewfinder</i>
+            <div id="qris-status" class="text-color-gray font16 font-weight-semibold">Membuka kamera...</div>
+            <div class="text-color-gray font12 margin-top-xs text-align-center" style="padding: 0 40px;">
+                Arahkan kamera ke kode QR pengguna DogiPay
+            </div>
+
+            <a id="btn-scan-ulang" class="button button-fill button-round warna_dasar_sistem margin-top-large" style="width: 220px; display: none;">
+                <i class="icon f7-icons font18 margin-right-xs">qrcode_viewfinder</i>
+                Scan Ulang
+            </a>
         </div>
     </div>
 </template>
+
+<script>
+import * as fungsi from '../js/function.js';
+
+export default (props, { $, $on, $f7 }) => {
+
+    function mulai_scan(){
+    $("#qris-status").text("Membuka kamera...");
+    $("#btn-scan-ulang").css("display", "none");
+
+    fungsi.scan_qr(function(qrCode, error){
+        if(error || !qrCode){
+            $("#qris-status").text("Scan dibatalkan");
+            $("#btn-scan-ulang").css("display", "block");
+            return;
+        }
+
+        $("#qris-status").text("Memeriksa kode QR...");
+
+        // ── Cek apakah QR dari transfer.f7 (Close Pay internal) ──
+        if(qrCode.startsWith("DOGIPAY|CLOSEPAY|")){
+            proses_closepay(qrCode);
+            return;
+        }
+
+        // ── QR lain → hit API seperti biasa ──
+        fungsi.lookup_qr(qrCode, function(status, body){
+            if(status !== 200){
+                $f7.dialog.alert(body.message || "QR Code tidak valid", "Gagal");
+                $("#qris-status").text("QR Code tidak dikenali");
+                $("#btn-scan-ulang").css("display", "block");
+                return;
+            }
+            minta_nominal(body.data.phone, body.data.name);
+        });
+    });
+}
+function proses_closepay(qrCode){
+    var data = { phone: '', nominal: '', catatan: '-', valid: false };
+    qrCode.split('|').forEach(function(p){
+        if(p.startsWith('PHONE:')) data.phone   = p.replace('PHONE:', '');
+        if(p.startsWith('NOM:'))   data.nominal = p.replace('NOM:', '');
+        if(p.startsWith('CAT:'))   data.catatan = p.replace('CAT:', '') || '-';
+        if(p.startsWith('TS:')){
+            var age = Date.now() - parseInt(p.replace('TS:', ''));
+            data.valid = age < 180000;
+        }
+    });
+
+    if(!data.phone || !data.nominal){
+        $f7.dialog.alert("QR Code tidak lengkap atau rusak", "QR Tidak Valid");
+        $("#btn-scan-ulang").css("display", "block");
+        return;
+    }
+
+    if(!data.valid){
+        $f7.dialog.alert(
+            "QR Code sudah kadaluarsa (lebih dari 3 menit).\nMinta penerima generate QR baru.",
+            "QR Expired"
+        );
+        $("#btn-scan-ulang").css("display", "block");
+        return;
+    }
+
+    var nominal    = parseInt(data.nominal);
+    var nominalFmt = 'Rp ' + nominal.toLocaleString('id-ID');
+
+    $f7.dialog.confirm(
+        "Transfer ke " + data.phone +
+        "\nSebesar " + nominalFmt +
+        (data.catatan !== '-' ? "\nCatatan: " + data.catatan : "") +
+        "\n\nLanjutkan?",
+        "Konfirmasi Transfer",
+        function(){
+            minta_pin_closepay(data.phone, nominal, data.catatan);
+        },
+        function(){
+            $("#qris-status").text("Transfer dibatalkan");
+            $("#btn-scan-ulang").css("display", "block");
+        }
+    );
+}
+
+function minta_pin_closepay(phone, amount, catatan){
+    var nominalFmt = 'Rp ' + amount.toLocaleString('id-ID');
+    $f7.dialog.prompt(
+        "Transfer " + nominalFmt + " ke " + phone +
+        "\n\nMasukkan PIN (6 digit):",
+        "Konfirmasi PIN",
+        function(pinInput){
+            if(!pinInput || !/^\d{6}$/.test(pinInput)){
+                $f7.dialog.alert("PIN harus 6 digit angka", "PIN Tidak Valid");
+                $("#btn-scan-ulang").css("display", "block");
+                return;
+            }
+            eksekusi_transfer(phone, null, amount, pinInput);
+        },
+        function(){
+            $("#qris-status").text("Transfer dibatalkan");
+            $("#btn-scan-ulang").css("display", "block");
+        }
+    );
+}
+    function minta_nominal(phone, name){
+        $f7.dialog.prompt(
+            "Transfer ke " + name + "\nMasukkan nominal:",
+            "Masukkan Nominal",
+            function(nominalInput){
+                var nominal = Number(nominalInput);
+                if(!nominalInput || isNaN(nominal) || nominal <= 0){
+                    $f7.dialog.alert("Nominal tidak valid", "Error");
+                    $("#btn-scan-ulang").css("display", "block");
+                    return;
+                }
+                minta_pin(phone, name, nominal);
+            },
+            function(){
+                $("#qris-status").text("Transfer dibatalkan");
+                $("#btn-scan-ulang").css("display", "block");
+            }
+        );
+    }
+
+    function minta_pin(phone, name, amount){
+        $f7.dialog.prompt(
+            "Transfer ke " + name + "\nSebesar Rp" + amount.toLocaleString('id-ID') + "\n\nMasukkan PIN (6 digit):",
+            "Konfirmasi PIN",
+            function(pinInput){
+                if(!pinInput || !/^\d{6}$/.test(pinInput)){
+                    $f7.dialog.alert("PIN harus 6 digit angka", "PIN Tidak Valid");
+                    $("#btn-scan-ulang").css("display", "block");
+                    return;
+                }
+                eksekusi_transfer(phone, name, amount, pinInput);
+            },
+            function(){
+                $("#qris-status").text("Transfer dibatalkan");
+                $("#btn-scan-ulang").css("display", "block");
+            }
+        );
+    }
+
+    function eksekusi_transfer(phone, name, amount, pin){
+        $("#qris-status").text("Memproses transfer...");
+        $f7.preloader.show();
+
+        fungsi.transfer_saldo(phone, amount, pin, function(status, body){
+            $f7.preloader.hide();
+
+            if(status === 200){
+                $f7.dialog.alert(
+                    "Transfer ke " + name + " sebesar Rp" + amount.toLocaleString('id-ID') + " berhasil.\nSaldo kamu telah dipotong.",
+                    "Transfer Berhasil",
+                    function(){ $f7.views.main.router.navigate('/', { reloadAll: true }); }
+                );
+                return;
+            }
+
+            if(status === 401){
+                $f7.dialog.alert("PIN yang kamu masukkan salah", "PIN Salah");
+                $("#btn-scan-ulang").css("display", "block");
+                return;
+            }
+
+            if(status === 400 && body.message && body.message.toLowerCase().indexOf("saldo") !== -1){
+                $f7.dialog.alert("Saldo kamu tidak cukup untuk melakukan transfer ini", "Saldo Tidak Cukup");
+                $("#btn-scan-ulang").css("display", "block");
+                return;
+            }
+
+            if(status === 403){
+                $f7.dialog.alert("Sesi telah berakhir, silahkan login ulang", "Sesi Habis");
+                localStorage.removeItem("token");
+                $f7.views.main.router.navigate('/login/', { reloadAll: true });
+                return;
+            }
+
+            $f7.dialog.alert(body.message || "Transfer gagal, silahkan coba lagi", "Gagal");
+            $("#btn-scan-ulang").css("display", "block");
+        });
+    }
+
+    $on('pageInit', () => {
+        mulai_scan();
+
+        $("#btn-scan-ulang").off('click').on('click', function(){
+            mulai_scan();
+        });
+    });
+
+    return $render;
+}
+</script>

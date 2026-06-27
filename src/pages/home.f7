@@ -21,7 +21,7 @@
                     <span class="tabbar-label">Transfer</span>
                 </a>
 
-                <a href="/qris/" class="tab-link tab-link-qr" data-route-tab-id="view-qris">
+                <a href="/qris/" class="tab-link-qr" data-route-tab-id="view-qris">
                     <div class="qr-icon-wrap">
                         <i class="icon f7-icons">qrcode_viewfinder</i>
                     </div>
@@ -42,7 +42,6 @@
         <div class="tabs tabs-routable">
             <div class="tab page-content" id="view-beranda"></div>
             <div class="tab page-content" id="view-transfer"></div>
-            <div class="tab page-content" id="view-qris"></div>
             <div class="tab page-content" id="view-tabungan"></div>
             <div class="tab page-content" id="view-profil"></div>
         </div>

@@ -4,7 +4,7 @@
             <div class="navbar-bg warna_dasar_sistem"></div>
             <div class="navbar-inner warna_dasar_sistem">
                 <div class="left">
-                    <a href="/" class="link text-color-white icon-only" @click="${handleBack}">
+                    <a href="/" class="link text-color-white icon-only" @click="${ handleBack }">
                         <i class="icon f7-icons font20">arrow_left</i>
                     </a>
                 </div>
@@ -31,7 +31,7 @@
                 <span class="font12 text-color-gray font-weight-semibold">Selesai</span>
             </div>
 
-            <!-- ====== STEP 1: Form ====== -->
+            <!-- ====== STEP 1: Isi Nominal ====== -->
             <div id="trx-step-1">
                 <div class="card no-shadow radius15">
                     <div class="card-content card-content-padding">
@@ -58,10 +58,10 @@
                         </div>
 
                         <div class="trx-quick-amounts">
-                            <span class="trx-quick-btn font12 bold" @click="${ () => setNominal(50000) }">50rb</span>
-                            <span class="trx-quick-btn font12 bold" @click="${ () => setNominal(100000) }">100rb</span>
-                            <span class="trx-quick-btn font12 bold" @click="${ () => setNominal(200000) }">200rb</span>
-                            <span class="trx-quick-btn font12 bold" @click="${ () => setNominal(500000) }">500rb</span>
+                            <span class="trx-quick-btn font12 bold" @click="${ () => fungsi.trxSetNominal(50000) }">50rb</span>
+                            <span class="trx-quick-btn font12 bold" @click="${ () => fungsi.trxSetNominal(100000) }">100rb</span>
+                            <span class="trx-quick-btn font12 bold" @click="${ () => fungsi.trxSetNominal(200000) }">200rb</span>
+                            <span class="trx-quick-btn font12 bold" @click="${ () => fungsi.trxSetNominal(500000) }">500rb</span>
                         </div>
                     </div>
                 </div>
@@ -85,7 +85,7 @@
                 </div>
             </div>
 
-            <!-- ====== STEP 2: QR Code ====== -->
+            <!-- ====== STEP 2: Tampilkan QR ====== -->
             <div id="trx-step-2" style="display:none;">
                 <div class="card no-shadow radius15 text-align-center">
                     <div class="card-content card-content-padding">
@@ -150,262 +150,23 @@
                 </div>
             </div>
 
-            <!-- ====== STEP 3: Sukses ====== -->
-            <div id="trx-step-3" style="display:none;">
-                <div class="card no-shadow radius15 text-align-center">
-                    <div class="card-content card-content-padding">
-                        <div class="fp-icon-wrap success gambar_tengah">✓</div>
-                        <div class="font18 bold bawah10p" style="margin-top:10px;">
-                            Transfer Diterima!
-                        </div>
-                        <div class="font12 text-color-gray bawah10p">
-                            Saldo kamu sudah bertambah
-                        </div>
-                        <div class="font22 bold warna_tulisan_hijau" id="trx-sukses-nominal">
-                            +Rp 0
-                        </div>
-                        <div class="font12 text-color-gray" id="trx-sukses-catatan" style="display:none;"></div>
-                    </div>
-                </div>
-
-                <div class="card no-shadow radius15">
-                    <div class="card-content card-content-padding">
-                        <div class="trx-detail-row">
-                            <span class="font12 text-color-gray">Dari</span>
-                            <span class="font13 bold">Pengirim QRIS</span>
-                        </div>
-                        <div class="trx-detail-row">
-                            <span class="font12 text-color-gray">Waktu</span>
-                            <span class="font13 bold" id="trx-sukses-waktu"></span>
-                        </div>
-                        <div class="trx-detail-row trx-detail-row-last">
-                            <span class="font12 text-color-gray">Status</span>
-                            <span class="font13 bold trx-status sukses">Berhasil</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="padding-horizontal">
-                    <a class="button button-fill auth-btn" @click="${ resetForm }">
-                        Buat Permintaan Baru
-                    </a>
-                </div>
-            </div>
-
         </div>
     </div>
 </template>
 
 <script>
-    import qrcode from 'qrcode-generator';
+    import * as fungsi from '../js/function.js';
 
     export default (props, { $f7, $on }) => {
 
-        let step = 1;
-        let nominal = '';
-        let catatan = '';
-        let timerInterval = null;
-        let timerSeconds = 180;
+        function handleBack()      { fungsi.trxHandleBack($f7); }
+        function buatQR()          { fungsi.trxBuatQR($f7); }
+        function bagikanQR()       { fungsi.trxBagikanQR($f7); }
+        function batalkanTransfer(){ fungsi.trxBatalkan($f7); }
+        function onNominalInput(e) { fungsi.trxOnNominalInput(e); }
+        function onCatatanInput(e) { fungsi.trxOnCatatanInput(e); }
 
-        // ── Helpers 
-        function formatRp(n) {
-            if (!n) return 'Rp 0';
-            return 'Rp ' + Number(n).toLocaleString('id-ID');
-        }
-
-        // ── Pindah Step (show/hide DOM manual) 
-        function goToStep(n) {
-            step = n;
-
-            ['trx-step-1', 'trx-step-2', 'trx-step-3'].forEach((id, idx) => {
-                const el = document.getElementById(id);
-                if (el) el.style.display = (idx + 1 === n) ? '' : 'none';
-            });
-
-            const titleEl = document.getElementById('trx-title');
-            if (titleEl) {
-                titleEl.textContent = n === 1 ? 'Minta Transfer' : n === 2 ? 'QR Code Transfer' : 'Transfer Berhasil';
-            }
-
-            // Update step indicator (dot & garis)
-            for (let i = 1; i <= 3; i++) {
-                const dot = document.getElementById('trx-dot-' + i);
-                if (!dot) continue;
-                dot.classList.remove('active', 'done');
-                if (i < n) {
-                    dot.classList.add('done');
-                    dot.textContent = '✓';
-                } else if (i === n) {
-                    dot.classList.add('active');
-                    if (i === 3) dot.classList.add('done');
-                    dot.textContent = (i === 3) ? '✓' : String(i);
-                } else {
-                    dot.textContent = String(i);
-                }
-            }
-            for (let i = 1; i <= 2; i++) {
-                const line = document.getElementById('trx-line-' + i);
-                if (line) line.classList.toggle('done', i < n);
-            }
-        }
-
-        function setNominal(v) {
-            nominal = v;
-            const input = document.getElementById('trx-input-nominal');
-            if (input) input.value = v;
-        }
-
-        function onNominalInput(e) {
-            nominal = e.target.value;
-        }
-
-        function onCatatanInput(e) {
-            catatan = e.target.value;
-        }
-
-        // ── Step 1 → 2: Buat QR 
-        function buatQR() {
-            if (!nominal || parseInt(nominal) < 1000) {
-                $f7.toast.create({
-                    text: '⚠️ Masukkan nominal minimal Rp 1.000',
-                    position: 'bottom',
-                    closeTimeout: 2000,
-                }).open();
-                return;
-            }
-
-            const catatanField = document.getElementById('trx-catatan-field');
-            if (catatanField) catatan = catatanField.value;
-
-            document.getElementById('trx-qr-nominal').textContent = formatRp(nominal);
-            document.getElementById('trx-qr-catatan').textContent = catatan || '';
-            document.getElementById('trx-detail-nominal').textContent = formatRp(nominal);
-            document.getElementById('trx-detail-catatan').textContent = catatan || '-';
-
-            goToStep(2);
-            setTimeout(() => {
-                renderQR();
-                startTimer();
-            }, 50);
-        }
-
-        // ── QR Code asli (qrcode-generator) 
-        function renderQR() {
-            const canvas = document.getElementById('trx-qr-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const size = 200;
-            ctx.clearRect(0, 0, size, size);
-
-            const qrData = `DOGIPAY|CLOSEPAY|REK:9012345678|NOM:${nominal}|CAT:${catatan}|TS:${Date.now()}`;
-
-            const qr = qrcode(0, 'M');
-            qr.addData(qrData);
-            qr.make();
-
-            const moduleCount = qr.getModuleCount();
-            const cellSize = size / moduleCount;
-
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, size, size);
-            ctx.fillStyle = '#1a1a2e';
-            for (let row = 0; row < moduleCount; row++) {
-                for (let col = 0; col < moduleCount; col++) {
-                    if (qr.isDark(row, col)) {
-                        ctx.fillRect(
-                            Math.round(col * cellSize),
-                            Math.round(row * cellSize),
-                            Math.ceil(cellSize),
-                            Math.ceil(cellSize)
-                        );
-                    }
-                }
-            }
-        }
-
-        // ── Timer 
-        function startTimer() {
-            stopTimer();
-            timerSeconds = 180;
-            updateTimerUI();
-            timerInterval = setInterval(() => {
-                timerSeconds--;
-                if (timerSeconds <= 0) {
-                    timerSeconds = 180;
-                    renderQR();
-                    $f7.toast.create({
-                        text: '🔄 QR Code diperbarui otomatis',
-                        position: 'bottom',
-                        closeTimeout: 1500,
-                    }).open();
-                }
-                updateTimerUI();
-            }, 1000);
-        }
-
-        function stopTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-        }
-
-        function updateTimerUI() {
-            const m = Math.floor(timerSeconds / 60);
-            const s = timerSeconds % 60;
-            const label = `${m}:${s.toString().padStart(2, '0')}`;
-            const pct = timerSeconds / 180;
-
-            const fill = document.getElementById('trx-refresh-fill');
-            if (fill) fill.style.width = (pct * 100) + '%';
-
-            const rl = document.getElementById('trx-refresh-label');
-            if (rl) rl.textContent = `Auto-refresh ${label}`;
-        }
-
-        // ── Aksi 
-        function bagikanQR() {
-            const text = `🔗 Minta Transfer via Dogi Pay\nNominal: ${formatRp(nominal)}\nNo. Rek: 9012345678\nScan QR via menu QRIS`;
-            if (navigator.share) {
-                navigator.share({ title: 'Transfer Dogi Pay', text });
-            } else {
-                navigator.clipboard && navigator.clipboard.writeText(text);
-                $f7.toast.create({ text: '✓ Info transfer disalin!', position: 'bottom', closeTimeout: 2000 }).open();
-            }
-        }
-
-        function batalkanTransfer() {
-            $f7.dialog.confirm(
-                'QR Code akan dibatalkan dan permintaan transfer ini akan dihapus. Lanjutkan?',
-                'Batalkan Permintaan',
-                () => { stopTimer(); resetForm(); }
-            );
-        }
-
-        function resetForm() {
-            stopTimer();
-            nominal = '';
-            catatan = '';
-
-            const input = document.getElementById('trx-input-nominal');
-            if (input) input.value = '';
-            const catatanField = document.getElementById('trx-catatan-field');
-            if (catatanField) catatanField.value = '';
-
-            goToStep(1);
-        }
-
-        function handleBack() {
-            if (step === 2) {
-                batalkanTransfer();
-            } else if (step === 3) {
-                resetForm();
-            } else {
-                $f7.views.main.router.back();
-            }
-        }
-
-        $on('pageBeforeRemove', () => stopTimer());
+        $on('pageBeforeRemove', () => fungsi.trxStopTimer());
 
         return $render;
     }

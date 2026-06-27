@@ -25,11 +25,11 @@ var routes = [
     tabs: [
       { path: '/', id: 'view-beranda', component: Beranda },
       { path: '/transfer/', id: 'view-transfer', component: Transfer },
-      { path: '/qris/', id: 'view-qris', component: Qris },
       { path: '/tabungan/', id: 'view-tabungan', component: Tabungan },
       { path: '/profil/', id: 'view-profil', component: Profil }
     ]
   },
+  { path: '/qris/', component: Qris },
   { path: '/tentang/', component: Tentang },
   { path: '/notifikasi/', component: Notifikasi },
   { path: '/history/', popup: { component: History } },
