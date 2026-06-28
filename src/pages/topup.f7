@@ -13,43 +13,20 @@
         </div>
 
         <div class="page-content page-content-padding">
-          <div class="card no-shadow radius20" style="background: linear-gradient(135deg, #4b6cb7, #1f2a6d); color:#fff; overflow:hidden;">
-            <div class="card-content display-flex flex-direction-column align-items-center text-align-center" style="padding: 22px 18px;">
-              <div class="font12 opacity-70" style="letter-spacing: 0.4px;">Hello</div>
-              <div class="font22 font-weight-bold margin-top-xs">${userName}</div>
-              <div class="font12 opacity-70 margin-top-xs">Nomor terdaftar</div>
-              <div class="font20 font-weight-bold margin-top-xs">${userPhone}</div>
-              <a class="button button-fill button-small margin-top" style="width: 100%; max-width: 240px;" @click="${copyPhone}">
-                Salin Nomor HP
-              </a>
-              <div class="font12 opacity-70 margin-top-xs" style="max-width: 260px;">
-                Serahkan nomor HP atau QR code ini ke kasir merchant untuk top up saldo.
-              </div>
-            </div>
+
+          <!-- Tab Buttons -->
+          <div class="topup-tab-bar">
+            <button class="topup-tab-btn ${ activeTab === 'identitas' ? 'active' : '' }" @click="${ () => switchTab('identitas') }">
+              QR Identitas
+            </button>
+            <button class="topup-tab-btn ${ activeTab === 'nominal' ? 'active' : '' }" @click="${ () => switchTab('nominal') }">
+              QR Nominal
+            </button>
           </div>
 
-          <div class="card no-shadow radius20 margin-top" style="background: #ffffff;">
-            <div class="card-content text-align-center">
-              <div class="font14 font-weight-bold margin-bottom">QR Code Top Up</div>
-              <div class="topup-qr-box" style="width: 220px; height: 220px; margin: 0 auto; border-radius: 22px; background: #f4f6fb; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 20px rgba(0,0,0,0.05);">
-                <canvas id="topup-qr-canvas" width="200" height="200"></canvas>
-              </div>
-              <div class="font12 text-color-gray margin-top-xs" style="max-width: 250px; margin-left: auto; margin-right: auto;">
-                QR code pengguna ini bisa digunakan merchant untuk memproses top up. Kalau kasir tidak scan, berikan nomor HP di atas.
-              </div>
-            </div>
-          </div>
+          <!-- Konten tab di-render via JS ke sini -->
+          <div id="topup-tab-content"></div>
 
-          <div class="card no-shadow radius20 margin-top">
-            <div class="card-content">
-              <div class="font14 font-weight-bold">Cara Top Up</div>
-              <div class="font12 text-color-gray margin-top-xs">
-                1. Beritahu kasir nomor HP yang terdaftar di DogiPay.<br />
-                2. Kasir dapat scan QR atau input nomor HP kamu.<br />
-                3. Saldo akan otomatis masuk setelah pembayaran berhasil.
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -66,17 +43,18 @@
     let userPhone = user ? user.phone : '-';
     let qrText = user ? (user.qr_code || `DogiPay:${user.phone}`) : 'DogiPay:unknown';
 
-    function renderQR() {
-      const canvas = document.getElementById('topup-qr-canvas');
+    let activeTab = 'identitas';
+    let selectedNominal = 0;
+
+    function renderQR(canvasId, text) {
+      const canvas = document.getElementById(canvasId);
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const size = 220;
+      const size = 200;
       ctx.clearRect(0, 0, size, size);
-
       const qr = qrcode(0, 'M');
-      qr.addData(qrText);
+      qr.addData(text);
       qr.make();
-
       const moduleCount = qr.getModuleCount();
       const cellSize = size / moduleCount;
       ctx.fillStyle = '#ffffff';
@@ -96,59 +74,181 @@
       }
     }
 
+    function renderTabContent() {
+      const container = document.getElementById('topup-tab-content');
+      if (!container) return;
+
+      if (activeTab === 'identitas') {
+        container.innerHTML = `
+          <div class="card no-shadow radius20" style="background: linear-gradient(135deg, #4b6cb7, #1f2a6d); color:#fff; overflow:hidden;">
+            <div class="card-content display-flex flex-direction-column align-items-center text-align-center" style="padding: 22px 18px;">
+              <div class="font12 opacity-70">Hello</div>
+              <div class="font22 font-weight-bold margin-top-xs">${userName}</div>
+              <div class="font12 opacity-70 margin-top-xs">Nomor terdaftar</div>
+              <div class="font20 font-weight-bold margin-top-xs">${userPhone}</div>
+              <button class="button button-fill button-small margin-top" style="width:100%;max-width:240px;" id="btnCopyPhone">
+                Salin Nomor HP
+              </button>
+              <div class="font12 opacity-70 margin-top-xs" style="max-width:260px;">
+                Serahkan nomor HP atau QR code ini ke kasir untuk top up saldo.
+              </div>
+            </div>
+          </div>
+
+          <div class="card no-shadow radius20 margin-top" style="background:#ffffff;">
+            <div class="card-content text-align-center">
+              <div class="font14 font-weight-bold margin-bottom">QR Code Identitas</div>
+              <div style="width:220px;height:220px;margin:0 auto;border-radius:22px;background:#f4f6fb;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 20px rgba(0,0,0,0.05);">
+                <canvas id="topup-qr-canvas" width="200" height="200"></canvas>
+              </div>
+              <div class="font12 text-color-gray margin-top-xs" style="max-width:250px;margin-left:auto;margin-right:auto;">
+                Kasir scan QR ini, lalu input nominal top up secara manual.
+              </div>
+            </div>
+          </div>
+
+          <div class="card no-shadow radius20 margin-top">
+            <div class="card-content">
+              <div class="font14 font-weight-bold">Cara Top Up (QR Identitas)</div>
+              <div class="font12 text-color-gray margin-top-xs">
+                1. Tunjukkan QR atau nomor HP ke kasir.<br/>
+                2. Kasir scan atau input nomor HP.<br/>
+                3. Kasir input nominal dan proses top up.
+              </div>
+            </div>
+          </div>
+        `;
+        document.getElementById('btnCopyPhone')?.addEventListener('click', copyPhone);
+        setTimeout(() => renderQR('topup-qr-canvas', qrText), 50);
+
+      } else {
+        // Tab nominal
+        const nominals = [10000, 25000, 50000, 100000, 200000, 500000];
+        const chipsHtml = nominals.map(nom => `
+          <div class="nominal-chip ${selectedNominal === nom ? 'selected' : ''}" data-nom="${nom}">
+            Rp ${nom.toLocaleString('id-ID')}
+          </div>
+        `).join('');
+
+        const summaryHtml = selectedNominal > 0 ? `
+          <div style="margin-top:12px;padding:12px;background:#f0fdf4;border-radius:12px;text-align:center;">
+            <div class="font12 text-color-gray">Nominal dipilih</div>
+            <div class="font20 font-weight-bold" style="color:#1a7f5a;">Rp ${selectedNominal.toLocaleString('id-ID')}</div>
+          </div>` : '';
+
+        const qrBoxHtml = selectedNominal > 0 ? `
+          <div class="card no-shadow radius20 margin-top" style="background:#ffffff;">
+            <div class="card-content text-align-center">
+              <div class="font14 font-weight-bold margin-bottom">QR Code Top Up</div>
+              <div style="width:220px;height:220px;margin:0 auto;border-radius:22px;background:#f4f6fb;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 20px rgba(0,0,0,0.05);">
+                <canvas id="topup-qr-nominal-canvas" width="200" height="200"></canvas>
+              </div>
+              <div class="font12 text-color-gray margin-top-xs" style="max-width:250px;margin-left:auto;margin-right:auto;">
+                Tunjukkan QR ini ke kasir. Nominal sudah terisi otomatis, kasir tinggal klik proses.
+              </div>
+            </div>
+          </div>` : '';
+
+        container.innerHTML = `
+          <div class="card no-shadow radius20" style="background:linear-gradient(135deg,#1a7f5a,#0e4d36);color:#fff;overflow:hidden;">
+            <div class="card-content display-flex flex-direction-column align-items-center text-align-center" style="padding:18px;">
+              <div class="font12 opacity-70">Top Up dengan Nominal</div>
+              <div class="font16 font-weight-bold margin-top-xs">${userName} · ${userPhone}</div>
+            </div>
+          </div>
+
+          <div class="card no-shadow radius20 margin-top">
+            <div class="card-content">
+              <div class="font14 font-weight-bold margin-bottom-half">Pilih atau masukkan nominal</div>
+              <div class="nominal-grid-topup">${chipsHtml}</div>
+              <input type="number" id="topup-custom-input" placeholder="Atau masukkan nominal lain" min="1000"
+                style="width:100%;border:1px solid #e0e0e0;border-radius:10px;padding:10px 14px;font-size:14px;margin-top:10px;box-sizing:border-box;" />
+              ${summaryHtml}
+            </div>
+          </div>
+
+          ${qrBoxHtml}
+
+          <div class="card no-shadow radius20 margin-top">
+            <div class="card-content">
+              <div class="font14 font-weight-bold">Cara Top Up (QR Nominal)</div>
+              <div class="font12 text-color-gray margin-top-xs">
+                1. Pilih atau masukkan nominal top up.<br/>
+                2. Tunjukkan QR ke kasir untuk di-scan.<br/>
+                3. Kasir klik proses — nominal sudah otomatis terisi.
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Event listener nominal chip
+        container.querySelectorAll('.nominal-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            selectedNominal = parseInt(chip.dataset.nom);
+            const customInput = document.getElementById('topup-custom-input');
+            if (customInput) customInput.value = '';
+            renderTabContent();
+            setTimeout(() => renderQRNominal(), 50);
+          });
+        });
+
+        // Event listener custom input
+        document.getElementById('topup-custom-input')?.addEventListener('change', (e) => {
+          const val = parseFloat(e.target.value);
+          selectedNominal = val > 0 ? val : 0;
+          if (selectedNominal > 0) {
+            renderTabContent();
+            setTimeout(() => renderQRNominal(), 50);
+          }
+        });
+
+        if (selectedNominal > 0) {
+          setTimeout(() => renderQRNominal(), 50);
+        }
+      }
+    }
+
+    function renderQRNominal() {
+      if (selectedNominal <= 0) return;
+      const phone = user ? user.phone : '';
+      const ts = Date.now();
+      const qrData = `DOGIPAY|CLOSEPAY|PHONE:${phone}|NOM:${selectedNominal}|CAT:|TS:${ts}`;
+      renderQR('topup-qr-nominal-canvas', qrData);
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      selectedNominal = 0;
+      $update();
+      setTimeout(() => renderTabContent(), 50);
+    }
+
     function copyPhone() {
       if (!userPhone || userPhone === '-') return;
-      navigator.clipboard?.writeText(userPhone)
-        .then(() => {
-          $f7.toast.create({ text: 'Nomor HP disalin', position: 'bottom', closeTimeout: 1500 }).open();
-        });
+      navigator.clipboard?.writeText(userPhone).then(() => {
+        $f7.toast.create({ text: 'Nomor HP disalin', position: 'bottom', closeTimeout: 1500 }).open();
+      });
     }
 
     function notifyTopupClosed() {
-      window.dispatchEvent(new CustomEvent('dogipay-topup-closed', {
-        detail: { popupId: 'topup' }
-      }));
-    }
-
-    function notifyTopupOpened() {
-      window.dispatchEvent(new CustomEvent('dogipay-topup-opened', {
-        detail: { popupId: 'topup' }
-      }));
+      window.dispatchEvent(new CustomEvent('dogipay-topup-closed', { detail: { popupId: 'topup' } }));
     }
 
     function handlePopupOpened() {
-      notifyTopupOpened();
+      window.dispatchEvent(new CustomEvent('dogipay-topup-opened', { detail: { popupId: 'topup' } }));
+      setTimeout(() => renderTabContent(), 100);
     }
 
     function handlePopupClosed() {
       notifyTopupClosed();
+      activeTab = 'identitas';
+      selectedNominal = 0;
+      $update();
     }
 
     $on('pageAfterIn', () => {
-      renderQR();
+      renderTabContent();
     });
-
-    // $on('popupOpen', handlePopupOpened);
-    // $on('popupClosed', handlePopupClosed);
-    // $on('pageBeforeRemove', handlePopupClosed);
-
-    // $on('pageAfterIn', () => {
-    //   notifyTopupOpened();
-    //   renderQR();
-    //   const popup = document.getElementById('topup');
-    //   if (popup) {
-    //     popup.addEventListener('popup:open', handlePopupOpened);
-    //     popup.addEventListener('popup:closed', handlePopupClosed);
-    //   }
-    // });
-
-    // $on('pageBeforeRemove', () => {
-    //   const popup = document.getElementById('topup');
-    //   if (popup) {
-    //     popup.removeEventListener('popup:open', handlePopupOpened);
-    //     popup.removeEventListener('popup:closed', handlePopupClosed);
-    //   }
-    // });
 
     return $render;
   }

@@ -1066,3 +1066,53 @@
 #kamera-reader span {
   display: none !important; 
 }
+
+/* Topup Tab Bar */
+.topup-tab-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: #f0f0f0;
+  border-radius: 12px;
+  padding: 4px;
+}
+.topup-tab-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #888;
+}
+.topup-tab-btn.active {
+  background: #ffffff;
+  color: #1a1a2e;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Nominal Chip */
+.nominal-grid-topup {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.nominal-chip {
+  padding: 10px 6px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  background: #fafafa;
+}
+.nominal-chip.selected {
+  border-color: #1a7f5a;
+  background: #f0fdf4;
+  color: #1a7f5a;
+}
