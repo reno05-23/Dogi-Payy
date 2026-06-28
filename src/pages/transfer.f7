@@ -103,9 +103,6 @@
                             Rp 0
                         </div>
                         <div class="font12 text-color-gray" id="trx-qr-catatan"></div>
-                        <div class="font12 text-color-gray bawah10p">
-                            Rek: <strong>9012345678</strong> · a.n. <strong>Dogi User</strong>
-                        </div>
 
                         <div class="trx-refresh-bar">
                             <i class="icon f7-icons font16 warna_tulisan_ungu">arrow_clockwise</i>
@@ -179,7 +176,7 @@
                     </a>
                 </div>
             </div>
-
+            <canvas id="trx-share-canvas" width="500" height="600" style="display: none;"></canvas>
         </div>
     </div>
 </template>

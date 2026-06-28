@@ -3,6 +3,10 @@ import qrcode from 'qrcode-generator';
 
 let html5QrCode;
 
+// /////////////////////////////////////////////
+//                 FUNGSI SCAN QR
+// ////////////////////////////////////////////
+
 export function scan_qr(callback) {
     html5QrCode = new Html5Qrcode("kamera-reader");
 
@@ -258,14 +262,138 @@ export function trxBuatQR($f7) {
     }, 50);
 }
 
+// //////////////////////////////////////////
+//             FUNGSI BAGIKAN QR
+// /////////////////////////////////////////
 export function trxBagikanQR($f7) {
-    const text = `🔗 Minta Transfer via Dogi Pay\nNominal: ${trxFormatRp(_trxNominal)}\nNo. Rek: 9012345678\nScan QR via menu QRIS`;
-    if (navigator.share) {
-        navigator.share({ title: 'Transfer Dogi Pay', text });
-    } else {
-        navigator.clipboard && navigator.clipboard.writeText(text);
-        $f7.toast.create({ text: '✓ Info transfer disalin!', position: 'bottom', closeTimeout: 2000 }).open();
-    }
+    trxRenderShareCanvas(function (imageUrl) {
+        if (window.plugins && window.plugins.socialsharing) {
+            window.plugins.socialsharing.share(
+                null,
+                'qr-transfer.png',
+                imageUrl,
+                null,
+                function () { },
+                function (err) {
+                    console.error('Share error:', err);
+                    $f7.toast.create({ text: '⚠️ Gagal membagikan QR', position: 'bottom', closeTimeout: 2000 }).open();
+                }
+            );
+        } else if (navigator.share) {
+            const byteString = atob(imageUrl.split(',')[1]);
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+            const blob = new Blob([ia], { type: 'image/png' });
+            const file  = new File([blob], 'qr-transfer.png', { type: 'image/png' });
+            navigator.share({ files: [file] })
+                .catch(err => console.error('Share error:', err));
+        } else {
+            $f7.dialog.alert('Fitur berbagi tidak tersedia di perangkat ini.', 'Tidak Tersedia');
+        }
+    });
+}
+
+// /////////////////////////////////////////////////
+//              CANVAS BAGIKAN QR
+// ////////////////////////////////////////////////
+export function trxRenderShareCanvas(callback) {
+    const srcCanvas = document.getElementById('trx-qr-canvas');
+    const shareCanvas = document.getElementById('trx-share-canvas');
+    if (!srcCanvas || !shareCanvas) return;
+
+    let userName = '-';
+    let userPhone = '-';
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            userName = user.name || '-';
+            userPhone = user.phone || '-';
+        }
+    } catch (e) { }
+
+    const nominal = trxFormatRp(_trxNominal);
+
+    const ctx = shareCanvas.getContext('2d');
+    const W = shareCanvas.width;   // 500
+    const H = shareCanvas.height;  // 680 — naikkan tinggi canvas
+
+    shareCanvas.height = 680;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Header DogiPay ──
+    const headerY = 50;
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.arc(W / 2 - 78, headerY, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('D', W / 2 - 78, headerY + 1);
+
+    ctx.fillStyle = '#1a1a2e';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('DogiPay', W / 2 - 52, headerY + 8);
+
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, headerY + 36);
+    ctx.lineTo(W - 40, headerY + 36);
+    ctx.stroke();
+
+    // ── QR ──
+    const qrSize = 340;
+    const qrX = (W - qrSize) / 2;
+    const qrY = headerY + 64;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.08)';
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(qrX - 16, qrY - 16, qrSize + 32, qrSize + 32);
+    ctx.restore();
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(qrX - 16, qrY - 16, qrSize + 32, qrSize + 32);
+    ctx.drawImage(srcCanvas, qrX, qrY, qrSize, qrSize);
+
+    // ── Info teks di dalam gambar ──
+    const infoY = qrY + qrSize + 48;
+
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.beginPath();
+    ctx.moveTo(40, infoY - 20);
+    ctx.lineTo(W - 40, infoY - 20);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.fillStyle = '#1a1a2e';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText(userName, W / 2, infoY + 4);
+
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '13px Arial';
+    ctx.fillText(userPhone, W / 2, infoY + 24);
+
+    ctx.fillStyle = '#f97316';
+    ctx.font = 'bold 22px Arial';
+    ctx.fillText(nominal, W / 2, infoY + 56);
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '12px Arial';
+    ctx.fillText('Scan QR ini untuk transfer ke saya', W / 2, infoY + 80);
+
+    callback(shareCanvas.toDataURL('image/png'));
 }
 
 export function trxBatalkan($f7) {
@@ -298,7 +426,9 @@ export function trxHandleBack($f7) {
     }
 }
 
+// /////////////////////////////////////////////
 // IKI FUNGSI ANYAR GAE STEP 3 TRANSFER
+// /////////////////////////////////////////////
 export function trxGoToSuccess($f7, data) {
     trxStopTimer();
     trxGoToStep(3, $f7);
@@ -322,21 +452,23 @@ export function trxGoToSuccess($f7, data) {
     }
 }
 
-// bukti tranfer
+// //////////////////////////////////////
+// CANVAS CETAK BUKTI TRANFER (WA)
+// //////////////////////////////////////
 export function cetakBukti(data, callback) {
     const canvas = document.getElementById('bukti-canvas');
-    const ctx    = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
 
     const W = canvas.width;
     const H = canvas.height;
 
-    const fmtRp  = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
-    const now    = new Date();
-    const tgl    = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-    const jam    = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    const refId  = 'DGP' + Date.now().toString().slice(-8);
-    const biaya  = 0;
-    const total  = Number(data.amount) + biaya;
+    const fmtRp = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+    const now = new Date();
+    const tgl = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    const jam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const refId = 'DGP' + Date.now().toString().slice(-8);
+    const biaya = 0;
+    const total = Number(data.amount) + biaya;
 
     // ── Background ──
     ctx.fillStyle = '#ffffff';
@@ -408,8 +540,8 @@ export function cetakBukti(data, callback) {
     dashedLine(260);
 
     // ── Nominal ──
-    row('Jumlah Transfer',  fmtRp(data.amount), 282);
-    row('Biaya Transaksi',  fmtRp(biaya),        306);
+    row('Jumlah Transfer', fmtRp(data.amount), 282);
+    row('Biaya Transaksi', fmtRp(biaya), 306);
 
     dashedLine(322);
 
@@ -419,9 +551,9 @@ export function cetakBukti(data, callback) {
     dashedLine(360);
 
     // ── Info transaksi ──
-    row('No. Referensi', refId,  382);
-    row('Tanggal',       tgl,    406);
-    row('Waktu',         jam,    430);
+    row('No. Referensi', refId, 382);
+    row('Tanggal', tgl, 406);
+    row('Waktu', jam, 430);
 
     dashedLine(448);
 
@@ -445,10 +577,13 @@ export function cetakBukti(data, callback) {
     callback(canvas.toDataURL('image/png'));
 }
 
+// /////////////////////////////////////////
+// CANVAS CETAK PRINT
+// ////////////////////////////////////////
 export function formatStrukBluetooth(data) {
     const fmtRp = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
-    const now   = new Date().toLocaleString('id-ID');
-    const line  = '--------------------------------';
+    const now = new Date().toLocaleString('id-ID');
+    const line = '--------------------------------';
     const refId = 'DGP' + Date.now().toString().slice(-8);
     const biaya = 0;
     const total = Number(data.amount) + biaya;
@@ -460,12 +595,12 @@ export function formatStrukBluetooth(data) {
         'Status   : BERHASIL',
         line,
         'PENGIRIM',
-        'Nama     : ' + (data.senderName   || '-'),
-        'No. HP   : ' + (data.senderPhone  || '-'),
+        'Nama     : ' + (data.senderName || '-'),
+        'No. HP   : ' + (data.senderPhone || '-'),
         line,
         'PENERIMA',
         'Nama     : ' + (data.receiverName || '-'),
-        'No. HP   : ' + (data.receiverPhone|| '-'),
+        'No. HP   : ' + (data.receiverPhone || '-'),
         line,
         'Jumlah   : ' + fmtRp(data.amount),
         'Biaya    : ' + fmtRp(biaya),
