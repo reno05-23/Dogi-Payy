@@ -149,6 +149,36 @@
                     </a>
                 </div>
             </div>
+            <!-- ====== STEP 3: Selesai ====== -->
+            <div id="trx-step-3" style="display:none;">
+                <div class="card no-shadow radius15 text-align-center">
+                    <div class="card-content card-content-padding">
+                        <i class="icon f7-icons font60" style="color: green;">checkmark_circle_fill</i>
+                        <div class="font18 bold margin-top" style="color: green;">Transfer Diterima!</div>
+                        <div class="font13 text-color-gray margin-top-half">Saldo kamu telah bertambah</div>
+
+                        <div class="margin-top">
+                            <div class="trx-detail-row">
+                                <span class="font12 text-color-gray">Dari</span>
+                                <span class="font13 bold" id="trx-success-nama">-</span>
+                            </div>
+                            <div class="trx-detail-row">
+                                <span class="font12 text-color-gray">Nominal</span>
+                                <span class="font13 bold" id="trx-success-nominal">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="padding-horizontal">
+                    <a class="button button-fill auth-btn" @click="${ () => fungsi.trxResetForm($f7) }">
+                        Buat Permintaan Baru
+                    </a>
+                     <a class="button button-outline fp-btn-outline margin-top-half" @click="${ () => $f7.views.main.router.navigate('/', { reloadAll: true }) }">
+                        Kembali ke Beranda
+                    </a>
+                </div>
+            </div>
 
         </div>
     </div>
@@ -157,7 +187,7 @@
 <script>
     import * as fungsi from '../js/function.js';
 
-    export default (props, { $f7, $on }) => {
+    export default (props, { $f7, $on, $f7router }) => {
 
         function handleBack()      { fungsi.trxHandleBack($f7); }
         function buatQR()          { fungsi.trxBuatQR($f7); }
@@ -166,7 +196,28 @@
         function onNominalInput(e) { fungsi.trxOnNominalInput(e); }
         function onCatatanInput(e) { fungsi.trxOnCatatanInput(e); }
 
-        $on('pageBeforeRemove', () => fungsi.trxStopTimer());
+       function onTransferReceived(e) {
+            const data = e.detail;
+            const nominalFmt = 'Rp ' + Number(data.amount).toLocaleString('id-ID');
+
+            // Pindah ke step 3
+            fungsi.trxGoToSuccess($f7, data);
+
+            $f7.toast.create({
+                text: `✅ Transfer ${nominalFmt} dari ${data.senderName} berhasil diterima!`,
+                position: 'bottom',
+                closeTimeout: 3000,
+            }).open();
+        }
+        // Pasang listener saat komponen dibuat — tidak bergantung lifecycle tab
+        window.addEventListener('dogipay-transfer-received', onTransferReceived);
+
+        $on('pageBeforeRemove', () => {
+            fungsi.trxStopTimer();
+            window.removeEventListener('dogipay-transfer-received', onTransferReceived);
+        });
+
+        
 
         return $render;
     }

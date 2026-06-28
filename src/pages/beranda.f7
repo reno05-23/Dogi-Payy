@@ -43,7 +43,7 @@
             <span class="font22 font-weight-bold text-color-black">
               ${ saldoVisible
                 ? (isLoading ? 'Memuat...' : 'Rp ' + formatRupiah(saldo))
-                : 'Rp â€¢â€¢â€¢â€¢â€¢â€¢' }
+                : 'Rp ********' }
             </span>
             <span @click="${ toggleSaldo }" style="margin-left: 8px; cursor: pointer;"
               class="display-flex align-items-center">
@@ -121,49 +121,13 @@
       <!-- Aktivitas Terakhir -->
       <div class="aktivitas-section">
         <div class="aktivitas-header">
-            <h3 class="aktivitas-title">Aktivitas Terakhir</h3>
-            <a href="/history/" class="popup-open aktivitas-lihat-semua" data-popup="#popup-history">
+          <h3 class="aktivitas-title">Aktivitas Terakhir</h3>
+          <a href="/history/" class="popup-open aktivitas-lihat-semua" data-popup="#popup-history">
             Lihat Semua
-            </a>
+          </a>
         </div>
-
-        <div class="text-align-center padding"
-            style="display: ${isLoadingHistory ? 'block' : 'none'};">
-            <span class="text-color-gray font13">Memuat aktivitas...</span>
-        </div>
-
-        <div class="text-align-center padding"
-            style="display: ${!isLoadingHistory && history.length === 0 ? 'block' : 'none'};">
-            <i class="icon f7-icons font32 text-color-gray">tray</i>
-            <p class="text-color-gray font13">Belum ada aktivitas</p>
-        </div>
-
-        <div class="aktivitas-list"
-            style="display: ${!isLoadingHistory && history.length > 0 ? 'flex' : 'none'};">
-            ${history.slice(0, 5).map(item => `
-            <div class="trx-item">
-                <div class="trx-icon-wrap ${item.type}">
-                <i class="icon f7-icons font20">
-                    ${item.type === 'topup' ? 'plus_circle'
-                    : item.type === 'transfer_in' ? 'arrow_down_circle'
-                    : item.type === 'transfer_out' ? 'arrow_up_circle'
-                    : item.type === 'system' ? 'creditcard'
-                    : 'clock'}
-                </i>
-                </div>
-                <div class="trx-info">
-                <div class="trx-nama">${item.title}</div>
-                <div class="trx-tanggal">${formatTanggal(item.created_at)}</div>
-                </div>
-                <div>
-                <div class="trx-nominal ${item.type === 'transfer_out' ? 'keluar' : 'masuk'}">
-                    ${item.type === 'transfer_out' ? '-' : '+'}Rp ${formatRupiah(item.amount || 0)}
-                </div>
-                </div>
-            </div>
-            `).join('')}
-        </div>
-        </div>
+        <div id="beranda-history-container"></div>
+      </div>
     </div>
   </div>
 </template>
@@ -182,8 +146,8 @@
     let copyDone          = false;
     let isLoading         = false;
     let isRefreshingSaldo = false;
-    let isLoadingHistory  = true;
-    let history           = [];
+    // let isLoadingHistory  = true;
+    // let history           = [];
     let saldoWatcher      = null;
     let lastTopupRefreshAt = 0;
     let topupCloseRefreshTimer = null;
@@ -358,20 +322,65 @@
 
     // â”€â”€ Load Riwayat dari API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     
-    async function loadHistory() {
-      isLoadingHistory = true;
-      $update();
+  async function loadHistory() {
+    console.log('[History] loadHistory called, container:', document.getElementById('beranda-history-container'));
+    const container = document.getElementById('beranda-history-container');
+    if (!container) {
+      return;
+    }
+
+      container.innerHTML = `
+        <div class="text-align-center padding">
+          <span class="text-color-gray font13">Memuat aktivitas...</span>
+        </div>`;
 
       try {
         const data = await apiFetch('/api/history');
-        if (data.success) {
-          history = data.data;
+
+        if (!data.success || !data.data || data.data.length === 0) {
+          container.innerHTML = `
+            <div class="text-align-center padding">
+              <i class="icon f7-icons font32 text-color-gray">tray</i>
+              <p class="text-color-gray font13">Belum ada aktivitas</p>
+            </div>`;
+          return;
         }
+
+        const items = data.data.slice(0, 5);
+        container.innerHTML = items.map(item => {
+          const icon = item.type === 'topup' ? 'plus_circle'
+            : item.type === 'transfer_in' ? 'arrow_down_circle'
+            : item.type === 'transfer_out' ? 'arrow_up_circle'
+            : item.type === 'system' ? 'creditcard'
+            : 'clock';
+          const color = item.type === 'transfer_out' ? '#ef4444' : '#22c55e';
+          const prefix = item.type === 'transfer_out' ? '-' : '+';
+          const nominal = item.amount
+            ? prefix + 'Rp ' + Number(item.amount).toLocaleString('id-ID')
+            : '';
+
+          return `
+            <div class="trx-item">
+              <div class="trx-icon-wrap ${item.type}">
+                <i class="icon f7-icons font20" style="color:${color}">${icon}</i>
+              </div>
+              <div class="trx-info">
+                <div class="trx-nama">${item.title}</div>
+                <div class="trx-tanggal">${formatTanggal(item.created_at)}</div>
+              </div>
+              <div class="trx-nominal ${item.type === 'transfer_out' ? 'keluar' : 'masuk'}">
+                ${nominal}
+              </div>
+            </div>`;
+        }).join('');
+
       } catch (err) {
+        const container2 = document.getElementById('beranda-history-container');
+        if (container2) container2.innerHTML = `
+          <div class="text-align-center padding">
+            <span class="text-color-gray font13">Gagal memuat aktivitas</span>
+          </div>`;
         console.error('Gagal load history:', err);
-      } finally {
-        isLoadingHistory = false;
-        $update();
       }
     }
 
@@ -460,9 +469,10 @@ function onTopupPopupOpened(eventOrPopup) {
 
 function onPageAfterIn() {
   refreshSaldo();
-  loadHistory();
   startSaldoWatcher();
-  startTopupEventSource();
+  // startTopupEventSource();
+  // Delay loadHistory sedikit agar DOM beranda-history-container sudah ready
+  setTimeout(() => loadHistory(), 100);
 }
 
 function onPageBeforeOut() {
@@ -485,6 +495,14 @@ $on('pageInit', () => {
     applySaldoUpdate(e.detail.saldoAfter);
     loadHistory();
   });
+  window.addEventListener('dogipay-transfer-sent', (e) => {
+    applySaldoUpdate(e.detail.saldoAfter);
+    loadHistory();
+  });
+  window.addEventListener('dogipay-transfer-received', (e) => {
+    applySaldoUpdate(e.detail.saldoAfter);
+    loadHistory();
+  });
 
   $f7.on('tabShow', (tabEl) => {
     if (tabEl.id === 'view-beranda') {
@@ -499,8 +517,17 @@ $on('pageInit', () => {
     }
   });
 
-  onPageAfterIn();
-});
+  const berandaTab = document.getElementById('view-beranda');
+  if (berandaTab && berandaTab.classList.contains('tab-active')) {
+    onPageAfterIn();
+  } else {
+    $f7.once('tabShow', (tabEl) => {
+      if (tabEl.id === 'view-beranda') {
+        onPageAfterIn();
+      }
+    });
+  }
+}); // ← tutup pageInit
 
 $on('pageBeforeRemove', () => {
   $f7.off('popupOpen', onTopupPopupOpened);
@@ -515,8 +542,10 @@ $on('pageBeforeRemove', () => {
   stopSaldoWatcher();
 });
 
+// Panggil langsung, tidak bergantung pageInit
+setTimeout(() => loadHistory(), 500);
 
-    return $render;
+return $render;
   }
 </script>
 

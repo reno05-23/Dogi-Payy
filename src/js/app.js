@@ -77,6 +77,16 @@ var app = new Framework7({
             handleTopupSuccess(JSON.parse(e.data));
           });
 
+          es.addEventListener('transfer_sent', e => {
+            console.log('[SSE] transfer_sent:', e.data);
+            handleTransferSent(JSON.parse(e.data));
+          });
+
+          es.addEventListener('transfer_received', e => {
+            console.log('[SSE] transfer_received:', e.data);
+            handleTransferReceived(JSON.parse(e.data));
+          });
+
           es.onerror = () => {
             console.warn('[SSE] EventSource error, retry in 5s...');
             es.close();
@@ -132,6 +142,18 @@ var app = new Framework7({
                         }
                       } else if (eventType === 'connected') {
                         console.log('[SSE] Connected via fetch stream!');
+                      } else if (eventType === 'transfer_sent') {
+                        try {
+                          handleTransferSent(JSON.parse(eventData));
+                        } catch (e) {
+                          console.error('[SSE] Parse error:', e);
+                        }
+                      } else if (eventType === 'transfer_received') {
+                        try {
+                          handleTransferReceived(JSON.parse(eventData));
+                        } catch (e) {
+                          console.error('[SSE] Parse error:', e);
+                        }
                       }
                       eventType = 'message';
                       eventData = '';
@@ -173,6 +195,43 @@ var app = new Framework7({
         window.dispatchEvent(new CustomEvent('dogipay-saldo-update', { detail: data }));
       }
 
+      function handleTransferSent(data) {
+        // Hanya update saldo kalau kita adalah pengirim
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const receiverName = data.receiverName;
+        // Kalau nama penerima adalah nama kita sendiri, skip — kita adalah penerima, bukan pengirim
+        if (currentUser.name === receiverName) return;
+
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        user.saldo = data.saldoAfter;
+        localStorage.setItem('user', JSON.stringify(user));
+
+        const saldoEl = document.querySelector('[data-name="beranda"] .font22.font-weight-bold');
+        if (saldoEl) {
+          saldoEl.textContent = 'Rp ' + Number(data.saldoAfter).toLocaleString('id-ID');
+        }
+
+        window.dispatchEvent(new CustomEvent('dogipay-transfer-sent', { detail: data }));
+      }
+
+      function handleTransferReceived(data) {
+        // Hanya update saldo kalau kita adalah penerima
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const senderName = data.senderName;
+        // Kalau nama pengirim adalah nama kita sendiri, skip — kita adalah pengirim, bukan penerima
+        if (currentUser.name === senderName) return;
+
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        user.saldo = data.saldoAfter;
+        localStorage.setItem('user', JSON.stringify(user));
+
+        const saldoEl = document.querySelector('[data-name="beranda"] .font22.font-weight-bold');
+        if (saldoEl) {
+          saldoEl.textContent = 'Rp ' + Number(data.saldoAfter).toLocaleString('id-ID');
+        }
+
+        window.dispatchEvent(new CustomEvent('dogipay-transfer-received', { detail: data }));
+      }
       // Start SSE setelah app init
       // Delay sedikit agar login state sudah ready
       window.startSSE = startSSE;

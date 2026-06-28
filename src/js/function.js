@@ -302,3 +302,27 @@ export function trxHandleBack($f7) {
         $f7.views.main.router.back();
     }
 }
+
+// IKI FUNGSI ANYAR GAE STEP 3 TRANSFER
+export function trxGoToSuccess($f7, data) {
+    trxStopTimer();
+    trxGoToStep(3, $f7);
+
+    // Update step dot 3 jadi done
+    const dot3 = document.getElementById('trx-dot-3');
+    if (dot3) {
+        dot3.classList.add('done', 'active');
+        dot3.textContent = '✓';
+    }
+
+    // Tampilkan step 3 — kita perlu tambah div-nya di template
+    const step3 = document.getElementById('trx-step-3');
+    if (step3) {
+        step3.style.display = '';
+        // Isi detail
+        const el = step3.querySelector('#trx-success-nama');
+        if (el) el.textContent = data.senderName || '-';
+        const elNominal = step3.querySelector('#trx-success-nominal');
+        if (elNominal) elNominal.textContent = 'Rp ' + Number(data.amount).toLocaleString('id-ID');
+    }
+}
