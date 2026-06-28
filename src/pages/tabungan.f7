@@ -1,78 +1,259 @@
 <template>
     <div class="page" data-name="tabungan">
-        <div class="navbar no-shadow no-hairline" style="height: 70px;">
-            <div class="navbar-bg warna_dasar_sistem"></div>
-            <div class="navbar-inner warna_dasar_sistem">
-                <div class="left"><a href="#" class="link back text-color-white"><i class="icon f7-icons font20">arrow_left</i></a></div>
-                <div class="title text-color-white font16 font-weight-bold">Buat Tabungan Baru</div>
-            </div>
-        </div>
-
-        <div class="page-content" style="padding-top: 70px;">
-            <div class="list no-hairlines-md">
-                <ul>
-                    <li class="item-content item-input">
-                        <div class="item-inner">
-                            <div class="item-title item-label">Total Target Nominal (IDR)</div>
-                            <div class="item-input-wrap"><input type="number" id="input-target" placeholder="Contoh: 1000000"></div>
-                        </div>
-                    </li>
-                    <li class="item-content item-input">
-                        <div class="item-inner">
-                            <div class="item-title item-label">Jumlah Cicilan (Kali)</div>
-                            <div class="item-input-wrap"><input type="number" id="input-kali" placeholder="Contoh: 10"></div>
-                        </div>
-                    </li>
-                    <li class="item-content item-input">
-                        <div class="item-inner">
-                            <div class="item-title item-label">Frekuensi Tagihan</div>
-                            <div class="item-input-wrap">
-                                <select id="input-frekuensi">
-                                    <option value="daily">Per Hari</option>
-                                    <option value="weekly">Per Minggu</option>
-                                    <option value="monthly" selected>Per Bulan</option>
-                                    <option value="yearly">Per Tahun</option>
-                                </select>
-                            </div>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="block">
-                <div class="card bg-color-orange text-color-white">
-                    <div class="card-content card-content-padding">
-                        <div class="font14">Estimasi Tagihan Anda:</div>
-                        <div class="font24 font-weight-bold" id="label-tagihan">Rp 0</div>
-                    </div>
-                </div>
-                <button class="button button-fill button-large margin-top" @click="${buatTabungan}">
-                    Buat Rencana Tabungan
-                </button>
-            </div>
+        <div class="page-content" style="padding-top: 16px;">
+            <div id="tabungan-root"></div>
         </div>
     </div>
 </template>
 
 <script>
-export default (props, { $f7, $update }) => {
-    // Logika perhitungan otomatis
-    const updateEstimasi = () => {
-        const target = document.getElementById('input-target').value || 0;
-        const kali = document.getElementById('input-kali').value || 1;
-        const tagihan = Math.ceil(target / kali);
-        document.getElementById('label-tagihan').innerText = `Rp ${tagihan.toLocaleString('id-ID')}`;
+export default (props, { $f7, $on }) => {
+
+    const getUser = () => {
+        try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch(e) { return {}; }
     };
 
-    // Panggil fungsi setiap user mengetik
-    const initListeners = () => {
-        document.getElementById('input-target').addEventListener('input', updateEstimasi);
-        document.getElementById('input-kali').addEventListener('input', updateEstimasi);
+    const formatRp = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+    const renderEmpty = () => `
+        <div style="padding: 0 16px;">
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 18px; font-weight: 500; color: var(--text-primary);">Tabungan</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Mulai sisihkan saldo rutin</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 32px 16px;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: #fff7ed; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                    <i class="icon f7-icons" style="font-size: 38px; color: #f97316;">graph_square</i>
+                </div>
+                <div style="font-size: 16px; font-weight: 500; color: var(--text-primary); margin-bottom: 8px;">Belum ada rencana tabungan</div>
+                <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 28px;">
+                    Buat rencana tabungan dan DogiPay akan otomatis memotong saldo kamu sesuai jadwal yang kamu atur.
+                </div>
+                <button id="btn-buat-baru" class="button button-fill" style="background: #f97316; border-color: #f97316; border-radius: 10px; width: 100%; height: 48px; font-size: 15px;">
+                    + Buat Tabungan
+                </button>
+            </div>
+        </div>
+    `;
+
+    const renderActive = (tabungan) => {
+        const pct = Math.min(100, Math.round((tabungan.terkumpul / tabungan.target) * 100));
+        const sisaCicilan = tabungan.totalCicilan - tabungan.cicilansudah;
+        const bisaTarik = tabungan.terkumpul >= tabungan.target;
+        const frekLabel = { daily: 'Per hari', weekly: 'Per minggu', monthly: 'Per bulan', yearly: 'Per tahun' };
+
+        return `
+        <div style="padding: 0 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                <div>
+                    <div style="font-size: 18px; font-weight: 500; color: var(--text-primary);">Tabungan</div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">1 rencana aktif</div>
+                </div>
+            </div>
+
+            <div style="background: #fff; border-radius: 12px; border: 0.5px solid var(--border); padding: 16px; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                    <div style="font-size: 15px; font-weight: 500; color: var(--text-primary);">${tabungan.nama}</div>
+                    <span style="font-size: 11px; padding: 3px 10px; border-radius: 20px; background: #fff7ed; color: #f97316; font-weight: 500;">Aktif</span>
+                </div>
+                <div style="font-size: 28px; font-weight: 500; color: var(--text-primary);">${formatRp(tabungan.terkumpul)}</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin: 4px 0 14px;">dari target ${formatRp(tabungan.target)}</div>
+                <div style="background: #fff7ed; border-radius: 20px; height: 8px; overflow: hidden; margin-bottom: 6px;">
+                    <div style="height: 100%; border-radius: 20px; background: #f97316; width: ${pct}%; transition: width 0.6s ease;"></div>
+                </div>
+                <div style="font-size: 12px; color: #f97316; font-weight: 500; text-align: right;">${pct}% tercapai</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px;">
+                <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Cicilan per periode</div>
+                    <div style="font-size: 15px; font-weight: 500; color: #f97316;">${formatRp(tabungan.cicilanPerPeriode)}</div>
+                </div>
+                <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Sisa cicilan</div>
+                    <div style="font-size: 15px; font-weight: 500; color: #7c3aed;">${sisaCicilan} kali</div>
+                </div>
+                <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Frekuensi</div>
+                    <div style="font-size: 15px; font-weight: 500; color: var(--text-primary);">${frekLabel[tabungan.frekuensi] || '-'}</div>
+                </div>
+                <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Batas min. saldo</div>
+                    <div style="font-size: 15px; font-weight: 500; color: var(--text-primary);">${formatRp(50000)}</div>
+                </div>
+            </div>
+
+            <div style="background: #f5f3ff; border-radius: 12px; border: 0.5px solid #ddd6fe; padding: 14px; margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start;">
+                <i class="icon f7-icons" style="font-size: 20px; color: #7c3aed; margin-top: 1px; flex-shrink: 0;">info_circle</i>
+                <div style="font-size: 12px; color: #5b21b6; line-height: 1.5;">
+                    <div style="font-weight: 500; font-size: 13px; margin-bottom: 2px;">Syarat penarikan</div>
+                    Penarikan ke saldo bisa dilakukan setelah tabungan mencapai ${formatRp(tabungan.target)}, atau kapan saja jika saldo tabungan sudah melebihi target.
+                </div>
+            </div>
+
+            <div style="background: #fff; border-radius: 12px; border: 0.5px solid var(--border); padding: 16px; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 0.5px solid var(--border);">
+                    <span style="font-size: 13px; color: var(--text-secondary);">Nama tabungan</span>
+                    <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${tabungan.nama}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 0.5px solid var(--border);">
+                    <span style="font-size: 13px; color: var(--text-secondary);">Total target</span>
+                    <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${formatRp(tabungan.target)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 0.5px solid var(--border);">
+                    <span style="font-size: 13px; color: var(--text-secondary);">Total cicilan</span>
+                    <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${tabungan.totalCicilan} kali</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 0;">
+                    <span style="font-size: 13px; color: var(--text-secondary);">Cicilan selesai</span>
+                    <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${tabungan.cicilansudah} kali</span>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 24px;">
+                <button id="btn-batalkan" style="padding: 12px; border-radius: 8px; background: #fef2f2; color: #dc2626; font-size: 13px; font-weight: 500; border: 0.5px solid #fecaca; cursor: pointer;">
+                    Batalkan
+                </button>
+                <button id="btn-tarik" style="padding: 12px; border-radius: 8px; background: ${bisaTarik ? '#f0fdf4' : '#f5f5f4'}; color: ${bisaTarik ? '#16a34a' : '#a3a3a3'}; font-size: 13px; font-weight: 500; border: 0.5px solid ${bisaTarik ? '#bbf7d0' : '#e5e5e5'}; cursor: ${bisaTarik ? 'pointer' : 'not-allowed'};">
+                    ${bisaTarik ? 'Tarik saldo' : 'Belum bisa tarik'}
+                </button>
+            </div>
+        </div>
+        `;
     };
 
-    const buatTabungan = async () => {
-        // Logika API untuk kirim ke backend
+    const renderSheet = () => `
+        <div id="tabungan-sheet-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: flex-end;">
+            <div style="background: var(--surface-2, #fff); border-radius: 20px 20px 0 0; padding: 20px 16px 32px; width: 100%;">
+                <div style="width: 36px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 0 auto 20px;"></div>
+                <div style="font-size: 17px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">Buat rencana tabungan</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Saldo dipotong otomatis sesuai jadwal</div>
+
+                <div style="margin-bottom: 14px;">
+                    <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 6px;">Nama tabungan</div>
+                    <input id="sheet-nama" type="text" placeholder="Contoh: Dana darurat" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 0.5px solid var(--border-strong); font-size: 14px; background: var(--surface-2); color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 6px;">Total target (IDR)</div>
+                    <input id="sheet-target" type="number" placeholder="Contoh: 1000000" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 0.5px solid var(--border-strong); font-size: 14px; background: var(--surface-2); color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 6px;">Jumlah cicilan (kali)</div>
+                    <input id="sheet-kali" type="number" placeholder="Contoh: 10" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 0.5px solid var(--border-strong); font-size: 14px; background: var(--surface-2); color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 6px;">Frekuensi pemotongan</div>
+                    <select id="sheet-frekuensi" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 0.5px solid var(--border-strong); font-size: 14px; background: var(--surface-2); color: var(--text-primary); outline: none; box-sizing: border-box; appearance: none;">
+                        <option value="weekly">Per minggu</option>
+                        <option value="monthly" selected>Per bulan</option>
+                        <option value="yearly">Per tahun</option>
+                    </select>
+                </div>
+                <div style="background: #fff7ed; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 12px; color: #c2410c;">Cicilan per periode</span>
+                    <span id="sheet-estimasi" style="font-size: 16px; font-weight: 500; color: #f97316;">Rp 0</span>
+                </div>
+                <button id="sheet-btn-simpan" class="button button-fill" style="background: #f97316; border-color: #f97316; border-radius: 10px; width: 100%; height: 48px; font-size: 15px; margin-bottom: 10px;">
+                    Simpan rencana
+                </button>
+                <button id="sheet-btn-batal" class="button button-outline" style="border-color: #f97316; color: #f97316; border-radius: 10px; width: 100%; height: 44px; font-size: 14px;">
+                    Batal
+                </button>
+            </div>
+        </div>
+    `;
+
+    const openSheet = () => {
+        document.body.insertAdjacentHTML('beforeend', renderSheet());
+        const overlay = document.getElementById('tabungan-sheet-overlay');
+
+        document.getElementById('sheet-target').addEventListener('input', hitungEstimasi);
+        document.getElementById('sheet-kali').addEventListener('input', hitungEstimasi);
+
+        document.getElementById('sheet-btn-batal').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+        document.getElementById('sheet-btn-simpan').addEventListener('click', simpanTabungan);
     };
+
+    const hitungEstimasi = () => {
+        const target = parseFloat(document.getElementById('sheet-target')?.value) || 0;
+        const kali = parseFloat(document.getElementById('sheet-kali')?.value) || 1;
+        const hasil = Math.ceil(target / kali);
+        const el = document.getElementById('sheet-estimasi');
+        if (el) el.textContent = 'Rp ' + hasil.toLocaleString('id-ID');
+    };
+
+    const simpanTabungan = async () => {
+        const nama = document.getElementById('sheet-nama')?.value?.trim();
+        const target = parseFloat(document.getElementById('sheet-target')?.value);
+        const kali = parseInt(document.getElementById('sheet-kali')?.value);
+        const frekuensi = document.getElementById('sheet-frekuensi')?.value;
+
+        if (!nama) { $f7.toast.create({ text: 'Nama tabungan wajib diisi', position: 'bottom', closeTimeout: 2000 }).open(); return; }
+        if (!target || target < 10000) { $f7.toast.create({ text: 'Target minimal Rp 10.000', position: 'bottom', closeTimeout: 2000 }).open(); return; }
+        if (!kali || kali < 1) { $f7.toast.create({ text: 'Jumlah cicilan minimal 1 kali', position: 'bottom', closeTimeout: 2000 }).open(); return; }
+
+        // TODO: kirim ke API backend
+        // const token = localStorage.getItem('token');
+        // const res = await fetch(`${API_BASE}/api/tabungan`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ nama, target, totalCicilan: kali, frekuensi }) });
+        // const data = await res.json();
+
+        document.getElementById('tabungan-sheet-overlay')?.remove();
+        $f7.toast.create({ text: 'Rencana tabungan berhasil dibuat!', position: 'bottom', closeTimeout: 2000 }).open();
+        render();
+    };
+
+    const batalkanTabungan = () => {
+        $f7.dialog.confirm(
+            'Tabungan akan dibatalkan dan saldo tabungan dikembalikan ke saldo utama.',
+            'Batalkan Tabungan',
+            () => {
+                // TODO: API batalkan
+                $f7.toast.create({ text: 'Tabungan dibatalkan', position: 'bottom', closeTimeout: 2000 }).open();
+                render();
+            }
+        );
+    };
+
+    const tarikSaldo = () => {
+        $f7.dialog.confirm(
+            'Saldo tabungan akan ditransfer ke saldo utama kamu.',
+            'Tarik Saldo Tabungan',
+            () => {
+                // TODO: API tarik
+                $f7.toast.create({ text: 'Saldo berhasil ditarik', position: 'bottom', closeTimeout: 2000 }).open();
+                render();
+            }
+        );
+    };
+
+    const render = () => {
+        const root = document.getElementById('tabungan-root');
+        if (!root) return;
+
+        // TODO: ganti dengan data dari API
+        // const token = localStorage.getItem('token');
+        // const res = await fetch(`${API_BASE}/api/tabungan`, { headers: { Authorization: 'Bearer ' + token } });
+        // const data = await res.json();
+        // const tabungan = data.data;
+
+        const tabungan = null; // ← ganti dengan data API nanti
+
+        if (!tabungan) {
+            root.innerHTML = renderEmpty();
+            document.getElementById('btn-buat-baru')?.addEventListener('click', openSheet);
+        } else {
+            root.innerHTML = renderActive(tabungan);
+            document.getElementById('btn-batalkan')?.addEventListener('click', batalkanTabungan);
+            if (tabungan.terkumpul >= tabungan.target) {
+                document.getElementById('btn-tarik')?.addEventListener('click', tarikSaldo);
+            }
+        }
+    };
+
+    setTimeout(render, 0);
+    setTimeout(render, 300);
 
     return $render;
 }

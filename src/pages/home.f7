@@ -39,11 +39,11 @@
             </div>
         </div>
 
-        <div class="tabs tabs-routable">
-            <div class="tab page-content" id="view-beranda"></div>
-            <div class="tab page-content" id="view-transfer"></div>
-            <div class="tab page-content" id="view-tabungan"></div>
-            <div class="tab page-content" id="view-profil"></div>
+       <div class="tabs tabs-routable">
+            <div class="tab" id="view-beranda"></div>
+            <div class="tab" id="view-transfer"></div>
+            <div class="tab" id="view-tabungan"></div>
+            <div class="tab" id="view-profil"></div>
         </div>
 
     </div>

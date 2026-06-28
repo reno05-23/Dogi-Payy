@@ -13,8 +13,7 @@ const BUILD_DIR = path.resolve(
   isCordova ? './cordova/www' : './www',
 );
 export default async () => {
-
-  return  {
+  return {
     plugins: [
       framework7({ emitCss: false }),
       createHtmlPlugin({
@@ -45,9 +44,6 @@ export default async () => {
     server: {
       host: true,
     },
-    esbuild: {
-      jsxFactory: '$jsx',
-      jsxFragment: '"Fragment"',
-    },
+    // esbuild block dihapus
   };
 }

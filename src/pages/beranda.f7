@@ -491,18 +491,18 @@ $on('pageInit', () => {
   window.addEventListener('dogipay-topup-opened', onTopupPopupOpened);
   window.addEventListener('dogipay-topup-closed', onTopupPopupClosed);
 
-  window.addEventListener('dogipay-saldo-update', (e) => {
-    applySaldoUpdate(e.detail.saldoAfter);
-    loadHistory();
-  });
-  window.addEventListener('dogipay-transfer-sent', (e) => {
-    applySaldoUpdate(e.detail.saldoAfter);
-    loadHistory();
-  });
-  window.addEventListener('dogipay-transfer-received', (e) => {
-    applySaldoUpdate(e.detail.saldoAfter);
-    loadHistory();
-  });
+  // window.addEventListener('dogipay-saldo-update', (e) => {
+  //   applySaldoUpdate(e.detail.saldoAfter);
+  //   loadHistory();
+  // });
+  // window.addEventListener('dogipay-transfer-sent', (e) => {
+  //   applySaldoUpdate(e.detail.saldoAfter);
+  //   loadHistory();
+  // });
+  // window.addEventListener('dogipay-transfer-received', (e) => {
+  //   applySaldoUpdate(e.detail.saldoAfter);
+  //   loadHistory();
+  // });
 
   $f7.on('tabShow', (tabEl) => {
     if (tabEl.id === 'view-beranda') {
@@ -542,11 +542,27 @@ $on('pageBeforeRemove', () => {
   stopSaldoWatcher();
 });
 
+// Daftarkan event listener langsung, tidak bergantung pageInit
+window.addEventListener('dogipay-saldo-update', (e) => {
+  applySaldoUpdate(e.detail.saldoAfter);
+  loadHistory();
+});
+
+window.addEventListener('dogipay-transfer-sent', (e) => {
+  applySaldoUpdate(e.detail.saldoAfter);
+  loadHistory();
+});
+
+window.addEventListener('dogipay-transfer-received', (e) => {
+  applySaldoUpdate(e.detail.saldoAfter);
+  loadHistory();
+});
+
 // Panggil langsung, tidak bergantung pageInit
 setTimeout(() => loadHistory(), 500);
 
-return $render;
-  }
+  return $render;
+}
 </script>
 
 
