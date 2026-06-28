@@ -8,214 +8,417 @@
                         <i class="icon f7-icons font20">arrow_left</i>
                     </a>
                 </div>
-                <div class="title text-color-white font16 font-weight-bold">QRIS Scan</div>
+                <div class="title text-color-white font16 font-weight-bold">Scan QRIS</div>
                 <div class="right"></div>
             </div>
         </div>
-        <div class="page-content display-flex flex-direction-column align-items-center justify-content-center">
-            <i id="qris-icon" class="icon f7-icons font40 warna_text_sistem margin-bottom">qrcode_viewfinder</i>
-            <div id="qris-status" class="text-color-gray font16 font-weight-semibold">Membuka kamera...</div>
-            <div class="text-color-gray font12 margin-top-xs text-align-center" style="padding: 0 40px;">
-                Arahkan kamera ke kode QR pengguna DogiPay
+
+        <div class="page-content qr-scanner-container no-padding" style="background-color: #000;">
+
+            <div id="kamera-reader" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
             </div>
 
-            <a id="btn-scan-ulang" class="button button-fill button-round warna_dasar_sistem margin-top-large" style="width: 220px; display: none;">
-                <i class="icon f7-icons font18 margin-right-xs">qrcode_viewfinder</i>
-                Scan Ulang
-            </a>
+            <div class="qr-scanner-box">
+                <div class="qr-corner-bottom"></div>
+                <div class="qr-laser"></div>
+            </div>
+
+            <div class="qr-info-wrapper" style="z-index: 3;">
+                <div id="qris-status" class="font18 font-weight-bold margin-bottom-xs">Membuka kamera...</div>
+                <div class="font13 opacity-80" style="line-height: 1.4;">
+                    Arahkan dan posisikan kode QR pengguna DogiPay<br />di dalam bingkai untuk memindai otomatis
+                </div>
+            </div>
+
+            <div class="qr-btn-wrapper" style="z-index: 4;">
+    <a id="btn-scan-ulang" class="button button-fill button-round warna_dasar_sistem"
+        style="width: 220px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;">
+        <i class="icon f7-icons font18 margin-right-xs">qrcode_viewfinder</i>
+        Coba Scan Ulang
+    </a>
+    <a id="btn-galeri" class="button button-fill button-round"
+        style="width: 220px; margin-top: 10px; background: rgba(255,255,255,0.15); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <i class="icon f7-icons font18 margin-right-xs">photo</i>
+        Pilih dari Galeri
+    </a>
+    <input type="file" id="input-galeri" accept="image/*" style="display: none;" />
+</div>
         </div>
+
+        <canvas id="bukti-canvas" width="400" height="570" style="display: none;"></canvas>
     </div>
 </template>
 
 <script>
-import * as fungsi from '../js/function.js';
+    import { Html5Qrcode } from "html5-qrcode";
+    import * as fungsi from '../js/function.js';
 
-export default (props, { $, $on, $f7 }) => {
+    export default (props, { $, $on, $f7 }) => {
 
-    function mulai_scan(){
-    $("#qris-status").text("Membuka kamera...");
-    $("#btn-scan-ulang").css("display", "none");
+        function mulai_scan() {
+            $("#qris-status").text("Memulai kamera...");
+            $("#btn-scan-ulang").css("display", "none");
 
-    fungsi.scan_qr(function(qrCode, error){
-        if(error || !qrCode){
-            $("#qris-status").text("Scan dibatalkan");
-            $("#btn-scan-ulang").css("display", "block");
-            return;
+            fungsi.stop_scan();
+
+            setTimeout(() => {
+                $("#kamera-reader").empty();
+
+                fungsi.scan_qr(function (qrCode, error) {
+                    if (error || !qrCode) {
+                        $("#qris-status").text(error || "Scan dibatalkan");
+                        $("#btn-scan-ulang").css("display", "block");
+                        return;
+                    }
+
+                    $("#qris-status").text("Memeriksa kode QR...");
+                    if (qrCode.startsWith("DOGIPAY|CLOSEPAY|")) {
+                        proses_closepay(qrCode);
+                        return;
+                    }
+
+                    fungsi.lookup_qr(qrCode, function (status, body) {
+                        if (status !== 200) {
+                            $f7.dialog.alert(body.message || "QR Code tidak valid", "Gagal");
+                            $("#qris-status").text("QR Code tidak dikenali");
+                            $("#btn-scan-ulang").css("display", "block");
+                            return;
+                        }
+                        minta_nominal(body.data.phone, body.data.name);
+                    });
+                });
+            }, 500);
         }
 
-        $("#qris-status").text("Memeriksa kode QR...");
+        function proses_closepay(qrCode) {
+            var data = { phone: '', nominal: '', catatan: '-', valid: false };
+            qrCode.split('|').forEach(function (p) {
+                if (p.startsWith('PHONE:')) data.phone = p.replace('PHONE:', '');
+                if (p.startsWith('NOM:')) data.nominal = p.replace('NOM:', '');
+                if (p.startsWith('CAT:')) data.catatan = p.replace('CAT:', '') || '-';
+                if (p.startsWith('TS:')) {
+                    var age = Date.now() - parseInt(p.replace('TS:', ''));
+                    data.valid = age < 180000;
+                }
+            });
 
-        // ── Cek apakah QR dari transfer.f7 (Close Pay internal) ──
-        if(qrCode.startsWith("DOGIPAY|CLOSEPAY|")){
-            proses_closepay(qrCode);
-            return;
-        }
-
-        // ── QR lain → hit API seperti biasa ──
-        fungsi.lookup_qr(qrCode, function(status, body){
-            if(status !== 200){
-                $f7.dialog.alert(body.message || "QR Code tidak valid", "Gagal");
-                $("#qris-status").text("QR Code tidak dikenali");
+            if (!data.phone || !data.nominal) {
+                $f7.dialog.alert("QR Code tidak lengkap atau rusak", "QR Tidak Valid");
                 $("#btn-scan-ulang").css("display", "block");
                 return;
             }
-            minta_nominal(body.data.phone, body.data.name);
-        });
-    });
-}
-function proses_closepay(qrCode){
-    var data = { phone: '', nominal: '', catatan: '-', valid: false };
-    qrCode.split('|').forEach(function(p){
-        if(p.startsWith('PHONE:')) data.phone   = p.replace('PHONE:', '');
-        if(p.startsWith('NOM:'))   data.nominal = p.replace('NOM:', '');
-        if(p.startsWith('CAT:'))   data.catatan = p.replace('CAT:', '') || '-';
-        if(p.startsWith('TS:')){
-            var age = Date.now() - parseInt(p.replace('TS:', ''));
-            data.valid = age < 180000;
-        }
-    });
 
-    if(!data.phone || !data.nominal){
-        $f7.dialog.alert("QR Code tidak lengkap atau rusak", "QR Tidak Valid");
-        $("#btn-scan-ulang").css("display", "block");
-        return;
-    }
-
-    if(!data.valid){
-        $f7.dialog.alert(
-            "QR Code sudah kadaluarsa (lebih dari 3 menit).\nMinta penerima generate QR baru.",
-            "QR Expired"
-        );
-        $("#btn-scan-ulang").css("display", "block");
-        return;
-    }
-
-    var nominal    = parseInt(data.nominal);
-    var nominalFmt = 'Rp ' + nominal.toLocaleString('id-ID');
-
-    $f7.dialog.confirm(
-        "Transfer ke " + data.phone +
-        "\nSebesar " + nominalFmt +
-        (data.catatan !== '-' ? "\nCatatan: " + data.catatan : "") +
-        "\n\nLanjutkan?",
-        "Konfirmasi Transfer",
-        function(){
-            minta_pin_closepay(data.phone, nominal, data.catatan);
-        },
-        function(){
-            $("#qris-status").text("Transfer dibatalkan");
-            $("#btn-scan-ulang").css("display", "block");
-        }
-    );
-}
-
-function minta_pin_closepay(phone, amount, catatan){
-    var nominalFmt = 'Rp ' + amount.toLocaleString('id-ID');
-    $f7.dialog.prompt(
-        "Transfer " + nominalFmt + " ke " + phone +
-        "\n\nMasukkan PIN (6 digit):",
-        "Konfirmasi PIN",
-        function(pinInput){
-            if(!pinInput || !/^\d{6}$/.test(pinInput)){
-                $f7.dialog.alert("PIN harus 6 digit angka", "PIN Tidak Valid");
-                $("#btn-scan-ulang").css("display", "block");
-                return;
-            }
-            eksekusi_transfer(phone, null, amount, pinInput);
-        },
-        function(){
-            $("#qris-status").text("Transfer dibatalkan");
-            $("#btn-scan-ulang").css("display", "block");
-        }
-    );
-}
-    function minta_nominal(phone, name){
-        $f7.dialog.prompt(
-            "Transfer ke " + name + "\nMasukkan nominal:",
-            "Masukkan Nominal",
-            function(nominalInput){
-                var nominal = Number(nominalInput);
-                if(!nominalInput || isNaN(nominal) || nominal <= 0){
-                    $f7.dialog.alert("Nominal tidak valid", "Error");
-                    $("#btn-scan-ulang").css("display", "block");
-                    return;
-                }
-                minta_pin(phone, name, nominal);
-            },
-            function(){
-                $("#qris-status").text("Transfer dibatalkan");
-                $("#btn-scan-ulang").css("display", "block");
-            }
-        );
-    }
-
-    function minta_pin(phone, name, amount){
-        $f7.dialog.prompt(
-            "Transfer ke " + name + "\nSebesar Rp" + amount.toLocaleString('id-ID') + "\n\nMasukkan PIN (6 digit):",
-            "Konfirmasi PIN",
-            function(pinInput){
-                if(!pinInput || !/^\d{6}$/.test(pinInput)){
-                    $f7.dialog.alert("PIN harus 6 digit angka", "PIN Tidak Valid");
-                    $("#btn-scan-ulang").css("display", "block");
-                    return;
-                }
-                eksekusi_transfer(phone, name, amount, pinInput);
-            },
-            function(){
-                $("#qris-status").text("Transfer dibatalkan");
-                $("#btn-scan-ulang").css("display", "block");
-            }
-        );
-    }
-
-    function eksekusi_transfer(phone, name, amount, pin){
-        $("#qris-status").text("Memproses transfer...");
-        $f7.preloader.show();
-
-        fungsi.transfer_saldo(phone, amount, pin, function(status, body){
-            $f7.preloader.hide();
-
-            if(status === 200){
+            if (!data.valid) {
                 $f7.dialog.alert(
-                    "Transfer ke " + name + " sebesar Rp" + amount.toLocaleString('id-ID') + " berhasil.\nSaldo kamu telah dipotong.",
-                    "Transfer Berhasil",
-                    function(){ $f7.views.main.router.navigate('/', { reloadAll: true }); }
+                    "QR Code sudah kadaluarsa (lebih dari 3 menit).\nMinta penerima generate QR baru.",
+                    "QR Expired"
                 );
-                return;
-            }
-
-            if(status === 401){
-                $f7.dialog.alert("PIN yang kamu masukkan salah", "PIN Salah");
                 $("#btn-scan-ulang").css("display", "block");
                 return;
             }
 
-            if(status === 400 && body.message && body.message.toLowerCase().indexOf("saldo") !== -1){
-                $f7.dialog.alert("Saldo kamu tidak cukup untuk melakukan transfer ini", "Saldo Tidak Cukup");
+            var nominal = parseInt(data.nominal);
+            var nominalFmt = 'Rp ' + nominal.toLocaleString('id-ID');
+
+            $f7.dialog.confirm(
+                "Transfer ke " + data.phone +
+                "\nSebesar " + nominalFmt +
+                (data.catatan !== '-' ? "\nCatatan: " + data.catatan : "") +
+                "\n\nLanjutkan?",
+                "Konfirmasi Transfer",
+                function () { minta_pin_closepay(data.phone, nominal, data.catatan); },
+                function () {
+                    $("#qris-status").text("Transfer dibatalkan");
+                    $("#btn-scan-ulang").css("display", "block");
+                }
+            );
+        }
+
+        function minta_pin_closepay(phone, amount, catatan) {
+            var nominalFmt = 'Rp ' + amount.toLocaleString('id-ID');
+            $f7.dialog.prompt(
+                "Transfer " + nominalFmt + " ke " + phone + "\n\nMasukkan PIN (6 digit):",
+                "Konfirmasi PIN",
+                function (pinInput) {
+                    if (!pinInput || !/^\d{6}$/.test(pinInput)) {
+                        $f7.dialog.alert("PIN harus 6 digit angka", "PIN Tidak Valid");
+                        $("#btn-scan-ulang").css("display", "block");
+                        return;
+                    }
+                    eksekusi_transfer(phone, null, amount, catatan, pinInput);
+                },
+                function () {
+                    $("#qris-status").text("Transfer dibatalkan");
+                    $("#btn-scan-ulang").css("display", "block");
+                }
+            );
+        }
+
+        function minta_nominal(phone, name) {
+            $f7.dialog.prompt(
+                "Transfer ke " + name + "\nMasukkan nominal:",
+                "Masukkan Nominal",
+                function (nominalInput) {
+                    var nominal = Number(nominalInput);
+                    if (!nominalInput || isNaN(nominal) || nominal <= 0) {
+                        $f7.dialog.alert("Nominal tidak valid", "Error");
+                        $("#btn-scan-ulang").css("display", "block");
+                        return;
+                    }
+                    minta_pin(phone, name, nominal);
+                },
+                function () {
+                    $("#qris-status").text("Transfer dibatalkan");
+                    $("#btn-scan-ulang").css("display", "block");
+                }
+            );
+        }
+
+        function minta_pin(phone, name, amount) {
+            $f7.dialog.prompt(
+                "Transfer ke " + name + "\nSebesar Rp" + amount.toLocaleString('id-ID') + "\n\nMasukkan PIN (6 digit):",
+                "Konfirmasi PIN",
+                function (pinInput) {
+                    if (!pinInput || !/^\d{6}$/.test(pinInput)) {
+                        $f7.dialog.alert("PIN harus 6 digit angka", "PIN Tidak Valid");
+                        $("#btn-scan-ulang").css("display", "block");
+                        return;
+                    }
+                    eksekusi_transfer(phone, name, amount, '', pinInput);
+                },
+                function () {
+                    $("#qris-status").text("Transfer dibatalkan");
+                    $("#btn-scan-ulang").css("display", "block");
+                }
+            );
+        }
+
+        function eksekusi_transfer(phone, name, amount, catatan, pin) {
+            $("#qris-status").text("Memproses transfer...");
+            $f7.preloader.show();
+
+            fungsi.transfer_saldo(phone, amount, pin, function (status, body) {
+                $f7.preloader.hide();
+
+                if (status === 200) {
+                    const apiData = body.data || {};
+
+                    let senderPhone = '';
+                    try {
+                        const user = JSON.parse(localStorage.getItem('user'));
+                        senderPhone = user ? user.phone : '';
+                    } catch (e) { }
+
+                    const dataBukti = {
+                        senderName: apiData.senderName || name || '-',
+                        senderPhone: senderPhone,
+                        receiverName: apiData.receiverName || name || phone,
+                        receiverPhone: phone,
+                        amount: apiData.amount || amount,
+                        catatan: catatan || 'Transfer via QRIS',
+                        saldoTerbaru: apiData.saldoTerbaru ?? null
+                    };
+
+                    fungsi.cetakBukti(dataBukti, function (imageUrl) {
+                        tampilkan_dialog_struk(dataBukti, imageUrl);
+                    });
+                    return;
+                }
+
+                if (status === 401) {
+                    $f7.dialog.alert("PIN yang kamu masukkan salah", "PIN Salah");
+                    $("#qris-status").text("PIN Salah");
+                    $("#btn-scan-ulang").css("display", "block");
+                    return;
+                }
+
+                if (status === 400 && body.message && body.message.toLowerCase().indexOf("saldo") !== -1) {
+                    $f7.dialog.alert("Saldo kamu tidak cukup untuk melakukan transfer ini", "Saldo Tidak Cukup");
+                    $("#qris-status").text("Saldo tidak cukup");
+                    $("#btn-scan-ulang").css("display", "block");
+                    return;
+                }
+
+                if (status === 403) {
+                    $f7.dialog.alert("Sesi telah berakhir, silahkan login ulang", "Sesi Habis");
+                    localStorage.removeItem("token");
+                    $f7.views.main.router.navigate('/login/', { reloadAll: true });
+                    return;
+                }
+
+                $f7.dialog.alert(body.message || "Transfer gagal, silahkan coba lagi", "Gagal");
+                $("#qris-status").text("Transfer gagal");
                 $("#btn-scan-ulang").css("display", "block");
+            });
+        }
+
+        function tampilkan_dialog_struk(dataBukti, imageUrl) {
+            $f7.dialog.create({
+                title: 'Transfer Sukses! 🎉',
+                verticalButtons: true,
+                buttons: [
+                    {
+                        text: '🖨️ Cetak via Bluetooth',
+                        color: 'orange',
+                        onClick: function () { cetak_bluetooth(dataBukti); return false; }
+                    },
+                    {
+                        text: '📤 Bagikan Struk',
+                        color: 'blue',
+                        onClick: function () { bagikan_struk(imageUrl, dataBukti); return false; }
+                    },
+                    {
+                        text: 'Selesai',
+                        bold: true,
+                        onClick: function () { $f7.views.main.router.navigate('/', { reloadAll: true }); }
+                    }
+                ]
+            }).open();
+        }
+
+        function cetak_bluetooth(dataBukti) {
+            if (!window.bluetoothSerial) {
+                $f7.dialog.alert("Plugin Bluetooth tidak tersedia di perangkat ini.", "Tidak Tersedia");
                 return;
             }
 
-            if(status === 403){
-                $f7.dialog.alert("Sesi telah berakhir, silahkan login ulang", "Sesi Habis");
-                localStorage.removeItem("token");
-                $f7.views.main.router.navigate('/login/', { reloadAll: true });
+            window.bluetoothSerial.isConnected(
+                function () {
+                    var teks = fungsi.formatStrukBluetooth(dataBukti);
+                    window.bluetoothSerial.write(
+                        teks,
+                        function () {
+                            $f7.toast.create({ text: '✅ Struk berhasil dicetak', position: 'bottom', closeTimeout: 2000 }).open();
+                        },
+                        function (err) {
+                            console.error('Bluetooth write error:', err);
+                            $f7.dialog.alert("Gagal mengirim data ke printer. Coba lagi.", "Gagal Cetak");
+                        }
+                    );
+                },
+                function () {
+                    $f7.dialog.confirm(
+                        "Printer Bluetooth belum terhubung.\nMau pilih printer sekarang?",
+                        "Printer Tidak Terhubung",
+                        function () { pilih_printer_bluetooth(dataBukti); }
+                    );
+                }
+            );
+        }
+
+        function pilih_printer_bluetooth(dataBukti) {
+            window.bluetoothSerial.list(
+                function (devices) {
+                    if (!devices || devices.length === 0) {
+                        $f7.dialog.alert(
+                            "Tidak ada perangkat Bluetooth yang sudah dipasangkan.\nPasangkan printer di Pengaturan Bluetooth HP terlebih dahulu.",
+                            "Tidak Ada Perangkat"
+                        );
+                        return;
+                    }
+
+                    var buttons = devices.map(function (dev) {
+                        return {
+                            text: dev.name || dev.address,
+                            onClick: function () {
+                                $f7.preloader.show();
+                                window.bluetoothSerial.connect(
+                                    dev.address,
+                                    function () {
+                                        $f7.preloader.hide();
+                                        $f7.toast.create({ text: '🖨️ Terhubung ke ' + (dev.name || dev.address), position: 'bottom', closeTimeout: 1500 }).open();
+                                        cetak_bluetooth(dataBukti);
+                                    },
+                                    function (err) {
+                                        $f7.preloader.hide();
+                                        console.error('BT connect error:', err);
+                                        $f7.dialog.alert("Gagal terhubung ke " + (dev.name || dev.address), "Koneksi Gagal");
+                                    }
+                                );
+                                return false;
+                            }
+                        };
+                    });
+
+                    buttons.push({ text: 'Batal', color: 'red' });
+                    $f7.dialog.create({ title: 'Pilih Printer', buttons: buttons, verticalButtons: true }).open();
+                },
+                function (err) {
+                    console.error('BT list error:', err);
+                    $f7.dialog.alert("Gagal mengambil daftar perangkat Bluetooth.", "Error");
+                }
+            );
+        }
+
+        function bagikan_struk(imageUrl, dataBukti) {
+            if (window.plugins && window.plugins.socialsharing) {
+                window.plugins.socialsharing.share(
+                    'Saya telah berhasil mengirimkan ' + fungsi.trxFormatRp(dataBukti.amount) + ' ke rekening ' + (dataBukti.receiverName || '-') + ' melalui DogiPay', 'Struk Transfer', imageUrl, null,
+                    function () { },
+                    function (err) {
+                        console.error('Share error:', err);
+                        $f7.toast.create({ text: '⚠️ Gagal membagikan struk', position: 'bottom', closeTimeout: 2000 }).open();
+                    }
+                );
+            } else {
+                $f7.dialog.alert("Fitur berbagi tidak tersedia di perangkat ini.", "Tidak Tersedia");
+            }
+        }
+
+        function scan_dari_galeri() {
+    const input = document.getElementById('input-galeri');
+    if (!input) return;
+    input.value = '';
+    input.click();
+}
+
+function proses_gambar_galeri(file) {
+    if (!file) return;
+
+    $("#qris-status").text("Membaca QR dari gambar...");
+    fungsi.stop_scan();
+
+    const html5QrCode = new Html5Qrcode("kamera-reader");
+
+    html5QrCode.scanFile(file, true)
+        .then(function (decodedText) {
+            $("#qris-status").text("Memeriksa kode QR...");
+
+            if (decodedText.startsWith("DOGIPAY|CLOSEPAY|")) {
+                proses_closepay(decodedText);
                 return;
             }
 
-            $f7.dialog.alert(body.message || "Transfer gagal, silahkan coba lagi", "Gagal");
+            fungsi.lookup_qr(decodedText, function (status, body) {
+                if (status !== 200) {
+                    $f7.dialog.alert(body.message || "QR Code tidak valid", "Gagal");
+                    $("#qris-status").text("QR Code tidak dikenali");
+                    $("#btn-scan-ulang").css("display", "block");
+                    return;
+                }
+                minta_nominal(body.data.phone, body.data.name);
+            });
+        })
+        .catch(function () {
+            $f7.dialog.alert("QR Code tidak ditemukan di gambar ini. Coba gambar lain.", "Gagal Membaca");
+            $("#qris-status").text("QR tidak ditemukan");
             $("#btn-scan-ulang").css("display", "block");
         });
-    }
-
-    $on('pageInit', () => {
-        mulai_scan();
-
-        $("#btn-scan-ulang").off('click').on('click', function(){
-            mulai_scan();
-        });
-    });
-
-    return $render;
 }
+
+        $on('pageAfterIn', () => {
+    setTimeout(mulai_scan, 300);
+    $("#btn-scan-ulang").off('click').on('click', mulai_scan);
+    $("#btn-galeri").off('click').on('click', scan_dari_galeri);
+    $("#input-galeri").off('change').on('change', function () {
+        proses_gambar_galeri(this.files[0]);
+    });
+});
+
+        $on('pageBeforeOut', () => {
+            fungsi.stop_scan();
+        });
+
+        return $render;
+    }
 </script>

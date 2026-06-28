@@ -1,36 +1,48 @@
-export function scan_qr(callback){
-    var options = {
-        barcodeFormats: { QRCode: true },
-        beepOnSuccess: true,
-        vibrateOnSuccess: true,
-        detectorSize: 0.6
+import { Html5Qrcode } from "html5-qrcode";
+import qrcode from 'qrcode-generator';
+
+let html5QrCode;
+
+export function scan_qr(callback) {
+    html5QrCode = new Html5Qrcode("kamera-reader");
+
+    const config = {
+        fps: 10,
+        aspectRatio: window.innerHeight / window.innerWidth
     };
 
-    cordova.plugins.mlkit.barcodeScanner.scan(
-        options,
-        function(result){
-            if(result.cancelled){
-                callback(null, "Scan dibatalkan");
-                return;
-            }
-            callback(result.text, null);
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+            html5QrCode.stop().then(() => {
+                callback(decodedText, null);
+            }).catch((err) => {
+                console.error("Gagal mematikan kamera", err);
+                callback(decodedText, null);
+            });
         },
-        function(error){
-            callback(null, error);
-        }
-    );
+        () => { }
+    ).catch(() => {
+        callback(null, "Gagal mengakses kamera. Pastikan izin kamera diberikan.");
+    });
 }
 
-// Parser EMV QRIS sederhana (format Tag-Length-Value)
-export function parse_qris(payload){
+export function stop_scan() {
+    if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(err => console.error("Error stopping", err));
+    }
+}
+
+export function parse_qris(payload) {
     var data = {};
     var i = 0;
 
-    while(i < payload.length - 4){
+    while (i < payload.length - 4) {
         var tag = payload.substr(i, 2);
         var len = parseInt(payload.substr(i + 2, 2), 10);
 
-        if(isNaN(len)){ break; }
+        if (isNaN(len)) break;
 
         var value = payload.substr(i + 4, len);
         data[tag] = value;
@@ -40,12 +52,12 @@ export function parse_qris(payload){
     return {
         merchantName: data["59"] || "Merchant",
         merchantCity: data["60"] || "-",
-        amount: data["54"] ? parseFloat(data["54"]) : null, // null = nominal belum ditentukan (QRIS statis)
+        amount: data["54"] ? parseFloat(data["54"]) : null,
         raw: payload
     };
 }
 
-export function lookup_qr(qrCode, callback){
+export function lookup_qr(qrCode, callback) {
     var token = localStorage.getItem("token");
     var base_url = "https://dogipay.renoaries.my.id/api";
 
@@ -53,16 +65,12 @@ export function lookup_qr(qrCode, callback){
         method: "GET",
         headers: { "Authorization": "Bearer " + token }
     })
-    .then(function(response){
-        return response.json().then(function(data){
-            return { status: response.status, body: data };
-        });
-    })
-    .then(function(result){ callback(result.status, result.body); })
-    .catch(function(){ callback(0, { message: "Tidak dapat terhubung ke server" }); });
+        .then(response => response.json().then(data => ({ status: response.status, body: data })))
+        .then(result => callback(result.status, result.body))
+        .catch(() => callback(0, { message: "Tidak dapat terhubung ke server" }));
 }
 
-export function transfer_saldo(receiverPhone, amount, pin, callback){
+export function transfer_saldo(receiverPhone, amount, catatan, callback) {
     var token = localStorage.getItem("token");
     var base_url = "https://dogipay.renoaries.my.id/api";
 
@@ -72,29 +80,21 @@ export function transfer_saldo(receiverPhone, amount, pin, callback){
             "Content-Type": "application/json",
             "Authorization": "Bearer " + token
         },
-        body: JSON.stringify({ receiverPhone: receiverPhone, amount: amount, pin: pin })
+        body: JSON.stringify({ receiverPhone, amount, catatan })
     })
-    .then(function(response){
-        return response.json().then(function(data){
-            return { status: response.status, body: data };
-        });
-    })
-    .then(function(result){ callback(result.status, result.body); })
-    .catch(function(){ callback(0, { message: "Tidak dapat terhubung ke server" }); });
+        .then(response => response.json().then(data => ({ status: response.status, body: data })))
+        .then(result => callback(result.status, result.body))
+        .catch(() => callback(0, { message: "Tidak dapat terhubung ke server" }));
 }
 
 
-// ═══════════════════════════════════════════
-//  TRANSFER / GENERATE QR
-// ═══════════════════════════════════════════
+// ── State Transfer / Generate QR ──
 
-import qrcode from 'qrcode-generator';
-
-let _trxStep       = 1;
-let _trxNominal    = '';
-let _trxCatatan    = '';
-let _trxTimer      = null;
-let _trxSeconds    = 180;
+let _trxStep = 1;
+let _trxNominal = '';
+let _trxCatatan = '';
+let _trxTimer = null;
+let _trxSeconds = 180;
 
 export function trxFormatRp(n) {
     if (!n) return 'Rp 0';
@@ -118,8 +118,7 @@ export function trxOnCatatanInput(e) {
 export function trxGoToStep(n, $f7) {
     _trxStep = n;
 
-    const stepIds = ['trx-step-1', 'trx-step-2'];
-    stepIds.forEach((id, idx) => {
+    ['trx-step-1', 'trx-step-2'].forEach((id, idx) => {
         const el = document.getElementById(id);
         if (el) el.style.display = (idx + 1 === n) ? '' : 'none';
     });
@@ -142,6 +141,7 @@ export function trxGoToStep(n, $f7) {
             dot.textContent = String(i);
         }
     }
+
     for (let i = 1; i <= 2; i++) {
         const line = document.getElementById('trx-line-' + i);
         if (line) line.classList.toggle('done', i < n);
@@ -150,34 +150,28 @@ export function trxGoToStep(n, $f7) {
 
 export function trxRenderQR() {
     const canvas = document.getElementById('trx-qr-canvas');
-    if (!canvas) {
-        console.error('[TRX] canvas trx-qr-canvas tidak ditemukan');
-        return;
-    }
+    if (!canvas) return;
 
-    const ctx  = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
     const size = 200;
     ctx.clearRect(0, 0, size, size);
 
-    // ── Ambil phone dari localStorage ──
     let userPhone = '';
     try {
         const user = JSON.parse(localStorage.getItem('user'));
-        userPhone  = user ? user.phone : '';
-    } catch(e) {
+        userPhone = user ? user.phone : '';
+    } catch (e) {
         console.error('[TRX] Gagal parse user dari localStorage', e);
     }
 
     const qrData = `DOGIPAY|CLOSEPAY|PHONE:${userPhone}|NOM:${_trxNominal}|CAT:${_trxCatatan}|TS:${Date.now()}`;
-    console.log('[TRX] Generate QR data:', qrData);
-
     try {
         const qr = qrcode(0, 'M');
         qr.addData(qrData);
         qr.make();
 
         const moduleCount = qr.getModuleCount();
-        const cellSize    = size / moduleCount;
+        const cellSize = size / moduleCount;
 
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, size, size);
@@ -195,8 +189,7 @@ export function trxRenderQR() {
                 }
             }
         }
-        console.log('[TRX] QR berhasil dirender, phone:', userPhone);
-    } catch(err) {
+    } catch (err) {
         console.error('[TRX] Error render QR:', err);
     }
 }
@@ -212,6 +205,7 @@ export function trxStartTimer($f7) {
     trxStopTimer();
     _trxSeconds = 180;
     _trxUpdateTimerUI();
+
     _trxTimer = setInterval(() => {
         _trxSeconds--;
         if (_trxSeconds <= 0) {
@@ -228,8 +222,8 @@ export function trxStartTimer($f7) {
 }
 
 function _trxUpdateTimerUI() {
-    const m   = Math.floor(_trxSeconds / 60);
-    const s   = _trxSeconds % 60;
+    const m = Math.floor(_trxSeconds / 60);
+    const s = _trxSeconds % 60;
     const pct = _trxSeconds / 180;
 
     const fill = document.getElementById('trx-refresh-fill');
@@ -252,8 +246,8 @@ export function trxBuatQR($f7) {
     const catatanField = document.getElementById('trx-catatan-field');
     if (catatanField) _trxCatatan = catatanField.value;
 
-    document.getElementById('trx-qr-nominal').textContent  = trxFormatRp(_trxNominal);
-    document.getElementById('trx-qr-catatan').textContent  = _trxCatatan || '';
+    document.getElementById('trx-qr-nominal').textContent = trxFormatRp(_trxNominal);
+    document.getElementById('trx-qr-catatan').textContent = _trxCatatan || '';
     document.getElementById('trx-detail-nominal').textContent = trxFormatRp(_trxNominal);
     document.getElementById('trx-detail-catatan').textContent = _trxCatatan || '-';
 
@@ -289,6 +283,7 @@ export function trxResetForm($f7) {
 
     const input = document.getElementById('trx-input-nominal');
     if (input) input.value = '';
+
     const catatanField = document.getElementById('trx-catatan-field');
     if (catatanField) catatanField.value = '';
 
@@ -325,4 +320,162 @@ export function trxGoToSuccess($f7, data) {
         const elNominal = step3.querySelector('#trx-success-nominal');
         if (elNominal) elNominal.textContent = 'Rp ' + Number(data.amount).toLocaleString('id-ID');
     }
+}
+
+// bukti tranfer
+export function cetakBukti(data, callback) {
+    const canvas = document.getElementById('bukti-canvas');
+    const ctx    = canvas.getContext('2d');
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const fmtRp  = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+    const now    = new Date();
+    const tgl    = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    const jam    = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const refId  = 'DGP' + Date.now().toString().slice(-8);
+    const biaya  = 0;
+    const total  = Number(data.amount) + biaya;
+
+    // ── Background ──
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Header ──
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, W, 80);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('DOGI PAY', W / 2, 32);
+    ctx.font = '13px Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText('Bukti Transfer', W / 2, 56);
+
+    // ── Ikon sukses ──
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(W / 2, 106, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px Arial';
+    ctx.fillText('✓', W / 2, 114);
+    ctx.fillStyle = '#15803d';
+    ctx.font = 'bold 15px Arial';
+    ctx.fillText('Transfer Berhasil', W / 2, 146);
+
+    // ── Helper ──
+    const dashedLine = (y) => {
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = '#d1d5db';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(24, y); ctx.lineTo(W - 24, y);
+        ctx.stroke();
+        ctx.restore();
+    };
+
+    const row = (label, value, y, valueColor = '#111827', valueBold = false) => {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '12px Arial';
+        ctx.fillText(label, 32, y);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = valueColor;
+        ctx.font = valueBold ? 'bold 13px Arial' : '13px Arial';
+        ctx.fillText(value, W - 32, y);
+    };
+
+    const subtext = (text, y) => {
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '11px Arial';
+        ctx.fillText(text, W - 32, y);
+    };
+
+    dashedLine(165);
+
+    // ── Pengirim ──
+    row('Pengirim', data.senderName || '-', 188);
+    subtext(data.senderPhone || '-', 204);
+
+    // ── Penerima ──
+    row('Penerima', data.receiverName || '-', 228);
+    subtext(data.receiverPhone || '-', 244);
+
+    dashedLine(260);
+
+    // ── Nominal ──
+    row('Jumlah Transfer',  fmtRp(data.amount), 282);
+    row('Biaya Transaksi',  fmtRp(biaya),        306);
+
+    dashedLine(322);
+
+    // ── Total ──
+    row('Jumlah Total', fmtRp(total), 344, '#1a1a2e', true);
+
+    dashedLine(360);
+
+    // ── Info transaksi ──
+    row('No. Referensi', refId,  382);
+    row('Tanggal',       tgl,    406);
+    row('Waktu',         jam,    430);
+
+    dashedLine(448);
+
+    // ── Footer ──
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '11px Arial';
+    ctx.fillText('Terima kasih telah menggunakan Dogi Pay', W / 2, 472);
+    ctx.fillText('Simpan struk ini sebagai bukti transaksi', W / 2, 490);
+
+    // ── Barcode dekoratif ──
+    ctx.fillStyle = '#e5e7eb';
+    for (let i = 0; i < 30; i++) {
+        const bw = (Math.random() > 0.5 ? 4 : 2);
+        ctx.fillRect(32 + i * 11, 508, bw, 28);
+    }
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '10px Arial';
+    ctx.fillText(refId, W / 2, 550);
+
+    callback(canvas.toDataURL('image/png'));
+}
+
+export function formatStrukBluetooth(data) {
+    const fmtRp = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+    const now   = new Date().toLocaleString('id-ID');
+    const line  = '--------------------------------';
+    const refId = 'DGP' + Date.now().toString().slice(-8);
+    const biaya = 0;
+    const total = Number(data.amount) + biaya;
+
+    return [
+        '         DOGI PAY        ',
+        '      BUKTI TRANSFER     ',
+        line,
+        'Status   : BERHASIL',
+        line,
+        'PENGIRIM',
+        'Nama     : ' + (data.senderName   || '-'),
+        'No. HP   : ' + (data.senderPhone  || '-'),
+        line,
+        'PENERIMA',
+        'Nama     : ' + (data.receiverName || '-'),
+        'No. HP   : ' + (data.receiverPhone|| '-'),
+        line,
+        'Jumlah   : ' + fmtRp(data.amount),
+        'Biaya    : ' + fmtRp(biaya),
+        'TOTAL    : ' + fmtRp(total),
+        line,
+        'Ref      : ' + refId,
+        'Tanggal  : ' + now,
+        line,
+        '   Terima kasih telah    ',
+        '    menggunakan DogiPay  ',
+        '\n\n\n',
+    ].join('\n');
 }
