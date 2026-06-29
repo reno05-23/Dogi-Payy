@@ -1,5 +1,5 @@
 <template>
-    <div class="popup" id="history">
+    <div class="popup" id="history" @popup:open="${ handleOpen }">
         <div class="view">
             <div class="page">
                 <div class="navbar no-shadow no-hairline" style="height: 70px;">
@@ -12,11 +12,8 @@
                     </div>
                 </div>
                 <div class="page-content bg-color-white">
-                    <div id="history-container" style="padding-bottom: 20px;">
-                        <div style="text-align:center;padding:40px 16px;">
-                            <span class="text-color-gray font13">Memuat riwayat...</span>
-                        </div>
-                    </div>
+                    <div id="history-filter-area"></div>
+                    <div id="history-list" style="padding-bottom:20px;"></div>
                 </div>
             </div>
         </div>
@@ -25,92 +22,376 @@
 
 <script>
 import { apiFetch } from '../js/config.js';
+import { cetakBukti } from '../js/function.js';
 
-export default (props, { $on }) => {
+export default (props, { $f7 }) => {
 
-    function formatRupiah(n) {
-        return Number(n).toLocaleString('id-ID');
-    }
+    let activeType = '';
+    let historyData = [];
 
-    function formatTanggal(dateStr) {
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diff = now - date;
-        const hari = Math.floor(diff / 86400000);
-        if (hari === 0) return 'Hari ini, ' + date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        if (hari === 1) return 'Kemarin, ' + date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) +
-               ', ' + date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    }
+    const fmtRp = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
 
-    function getIcon(type) {
-        if (type === 'topup') return 'plus_circle';
-        if (type === 'transfer_in') return 'arrow_down_circle';
-        if (type === 'transfer_out') return 'arrow_up_circle';
-        if (type === 'system') return 'creditcard';
-        return 'clock';
-    }
+    const fmtTgl = (s) => {
+        const d = new Date(s), now = new Date();
+        const hr = Math.floor((now - d) / 86400000);
+        const jam = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        if (hr === 0) return 'Hari ini, ' + jam;
+        if (hr === 1) return 'Kemarin, ' + jam;
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + jam;
+    };
 
-    function getColor(type) {
-        return type === 'transfer_out' ? '#ef4444' : '#22c55e';
-    }
+    const fmtTglLengkap = (s) => {
+        const d = new Date(s);
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) +
+            ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    };
 
-    function getPrefix(type) {
-        return type === 'transfer_out' ? '-' : '+';
-    }
+    const colorMap = { topup: '#22c55e', transfer_in: '#22c55e', transfer_out: '#ef4444' };
+    const iconMap  = { topup: 'plus_circle', transfer_in: 'arrow_down_circle', transfer_out: 'arrow_up_circle' };
+    const labelMap = { topup: 'Top Up', transfer_in: 'Transfer Masuk', transfer_out: 'Transfer Keluar' };
 
-    async function loadHistory() {
-        const container = document.getElementById('history-container');
-        if (!container) return;
+    // ── Render filter ──
+    const renderFilter = () => {
+        const el = document.getElementById('history-filter-area');
+        if (!el) return;
 
-        container.innerHTML = `
-            <div style="text-align:center;padding:40px 16px;">
-                <span class="text-color-gray font13">Memuat riwayat...</span>
+        const chips = [
+            { label: 'Semua', type: '' },
+            { label: 'Top Up', type: 'topup' },
+            { label: 'Masuk', type: 'transfer_in' },
+            { label: 'Keluar', type: 'transfer_out' },
+        ];
+
+        el.innerHTML = `
+            <div style="padding:12px 16px 0;border-bottom:1px solid #f0f0f0;">
+
+                <!-- Filter tab wrapper -->
+                <div style="margin:0 -16px;margin-bottom:10px;">
+                    <div id="chip-wrap" class="history-filter-tabs"
+                        style="display:flex;gap:6px;flex-wrap:nowrap;
+                               overflow-x:auto;padding:0 16px 8px;
+                               -webkit-overflow-scrolling:touch;
+                               scrollbar-width:none;">
+                        ${chips.map(c => `
+                            <button data-type="${c.type}" class="history-filter-tab ${activeType === c.type ? 'active' : ''}"
+                                style="flex:1 1 0;min-width:72px;white-space:nowrap;
+                                       padding:8px 10px;font-size:12px;font-weight:600;
+                                       border-radius:999px;border:1px solid ${activeType === c.type ? '#1a3c2e' : '#e0e0e0'};
+                                       background:${activeType === c.type ? '#1a3c2e' : '#f5f5f5'};
+                                       color:${activeType === c.type ? '#fff' : '#444'};
+                                       overflow:hidden;text-overflow:ellipsis;cursor:pointer;">
+                                ${c.label}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Filter tanggal -->
+                <div style="display:flex;gap:8px;align-items:center;padding-bottom:12px;">
+                    <div style="flex:1;">
+                        <div style="font-size:11px;color:#9ca3af;margin-bottom:3px;">Dari</div>
+                        <input type="date" id="filter-date-from"
+                            style="width:100%;border:1px solid #e0e0e0;border-radius:8px;
+                                   padding:6px 10px;font-size:12px;color:#333;box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-size:11px;color:#9ca3af;margin-bottom:3px;">Sampai</div>
+                        <input type="date" id="filter-date-to"
+                            style="width:100%;border:1px solid #e0e0e0;border-radius:8px;
+                                   padding:6px 10px;font-size:12px;color:#333;box-sizing:border-box;">
+                    </div>
+                    <div style="padding-top:16px;">
+                        <button id="btn-reset"
+                            style="border:none;background:none;color:#9ca3af;
+                                   font-size:12px;padding:6px 4px;cursor:pointer;">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Bind chip
+        document.getElementById('chip-wrap')?.querySelectorAll('button[data-type]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeType = btn.dataset.type;
+                renderFilter();
+                loadHistory();
+            });
+        });
+
+        // Bind date
+        document.getElementById('filter-date-from')?.addEventListener('change', loadHistory);
+        document.getElementById('filter-date-to')?.addEventListener('change', loadHistory);
+
+        // Bind reset
+        document.getElementById('btn-reset')?.addEventListener('click', () => {
+            activeType = '';
+            document.getElementById('filter-date-from').value = '';
+            document.getElementById('filter-date-to').value = '';
+            renderFilter();
+            loadHistory();
+        });
+    };
+
+    // ── Load history ──
+    const loadHistory = async () => {
+        const el = document.getElementById('history-list');
+        if (!el) return;
+
+        el.innerHTML = `
+            <div style="text-align:center;padding:40px 16px;color:#9ca3af;font-size:13px;">
+                Memuat riwayat...
             </div>`;
 
         try {
-            const data = await apiFetch('/api/history');
+            const params = new URLSearchParams();
+            if (activeType) params.append('type', activeType);
+            const df = document.getElementById('filter-date-from')?.value;
+            const dt = document.getElementById('filter-date-to')?.value;
+            if (df) params.append('date_from', df);
+            if (dt) params.append('date_to', dt);
 
-            if (!data.success || !data.data || data.data.length === 0) {
-                container.innerHTML = `
-                    <div style="display:flex;flex-direction:column;align-items:center;padding:60px 16px;">
-                        <i class="icon f7-icons font40 text-color-gray" style="margin-bottom:12px;">tray</i>
-                        <div class="text-color-gray font14 font-weight-semibold">Belum ada transaksi</div>
-                    </div>`;
-                return;
-            }
+            const qs = params.toString() ? '?' + params.toString() : '';
+            const res = await apiFetch('/api/history' + qs);
+            historyData = (res.success && res.data) ? res.data : [];
+            renderList();
+        } catch (err) {
+            const el = document.getElementById('history-list');
+            if (el) el.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;padding:60px 16px;">
+                    <i class="icon f7-icons" style="font-size:40px;color:#9ca3af;margin-bottom:12px;">exclamationmark_circle</i>
+                    <div style="font-size:14px;color:#9ca3af;">Gagal memuat riwayat</div>
+                </div>`;
+        }
+    };
 
-            container.innerHTML = data.data.map(item => `
-                <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #f0f0f0;">
-                    <div style="width:40px;height:40px;border-radius:50%;background:#f5f5f5;display:flex;align-items:center;justify-content:center;margin-right:12px;flex-shrink:0;">
-                        <i class="icon f7-icons font20" style="color:${getColor(item.type)}">${getIcon(item.type)}</i>
+    // ── Render list ──
+    const renderList = () => {
+        const el = document.getElementById('history-list');
+        if (!el) return;
+
+        if (!historyData.length) {
+            el.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;padding:60px 16px;">
+                    <i class="icon f7-icons" style="font-size:40px;color:#9ca3af;margin-bottom:12px;">tray</i>
+                    <div style="font-size:14px;color:#9ca3af;font-weight:600;">Belum ada transaksi</div>
+                </div>`;
+            return;
+        }
+
+        el.innerHTML = historyData.map((item, idx) => `
+            <div data-idx="${idx}"
+                style="display:flex;align-items:center;padding:12px 16px;
+                       border-bottom:1px solid #f0f0f0;cursor:pointer;">
+                <div style="width:40px;height:40px;border-radius:50%;background:#f5f5f5;
+                            display:flex;align-items:center;justify-content:center;
+                            margin-right:12px;flex-shrink:0;">
+                    <i class="icon f7-icons" style="font-size:20px;color:${colorMap[item.type] || '#999'};">
+                        ${iconMap[item.type] || 'clock'}
+                    </i>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:700;">${item.title}</div>
+                    <div style="font-size:12px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.message}</div>
+                    <div style="font-size:11px;color:#9ca3af;">${fmtTgl(item.created_at)}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;margin-left:8px;">
+                    <div style="font-size:13px;font-weight:700;color:${colorMap[item.type] || '#333'};">
+                        ${item.amount ? (item.type === 'transfer_out' ? '-' : '+') + fmtRp(item.amount) : ''}
                     </div>
-                    <div style="flex:1;min-width:0;">
-                        <div class="font13 font-weight-bold">${item.title}</div>
-                        <div class="font12 text-color-gray">${item.message}</div>
-                        <div class="font11 text-color-gray">${formatTanggal(item.created_at)}</div>
+                    <div style="font-size:11px;color:#9ca3af;">${labelMap[item.type] || ''}</div>
+                </div>
+            </div>
+        `).join('');
+
+        el.addEventListener('click', (e) => {
+            const row = e.target.closest('[data-idx]');
+            if (row) openSheet(parseInt(row.dataset.idx));
+        });
+    };
+
+    // ── Open bottom sheet ──
+    const openSheet = (idx) => {
+        const item = historyData[idx];
+        if (!item) return;
+
+        document.getElementById('history-detail-overlay')?.remove();
+
+        const d = item.detail || {};
+        const refId = 'DGP' + (item.reference_id || item.id);
+        const tanggal = fmtTglLengkap(d.trxDate || item.created_at);
+        const color = colorMap[item.type] || '#333';
+        const prefix = item.type === 'transfer_out' ? '-' : '+';
+
+        const row = (label, value) => `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                        padding:10px 0;border-bottom:1px solid #f5f5f5;">
+                <span style="font-size:13px;color:#9ca3af;flex-shrink:0;">${label}</span>
+                <span style="font-size:13px;color:#111827;font-weight:600;
+                             text-align:right;margin-left:12px;">${value}</span>
+            </div>`;
+
+        let bodyRows = '';
+        if (item.type === 'topup') {
+            bodyRows = `
+                ${row('Merchant', d.merchantName || '-')}
+                ${row('Nominal Top Up', fmtRp(item.amount))}
+                ${row('Saldo Sebelum', fmtRp(d.saldoBefore || 0))}
+                ${row('Saldo Sesudah', fmtRp(d.saldoAfter || 0))}
+                ${d.note ? row('Catatan', d.note) : ''}
+                ${row('No. Referensi', refId)}
+                ${row('Tanggal', tanggal)}
+                ${row('Status', '<span style="color:#22c55e;font-weight:700;">Berhasil</span>')}`;
+        } else if (item.type === 'transfer_out') {
+            bodyRows = `
+                ${row('Pengirim', (d.senderName || '-') + '<br><span style="font-size:11px;color:#9ca3af;">' + (d.senderPhone || '') + '</span>')}
+                ${row('Penerima', (d.receiverName || '-') + '<br><span style="font-size:11px;color:#9ca3af;">' + (d.receiverPhone || '') + '</span>')}
+                ${row('Jumlah Transfer', fmtRp(item.amount))}
+                ${row('Saldo Sebelum', fmtRp(d.saldoBefore || 0))}
+                ${row('Saldo Sesudah', fmtRp(d.saldoAfter || 0))}
+                ${d.note ? row('Catatan', d.note) : ''}
+                ${row('No. Referensi', refId)}
+                ${row('Tanggal', tanggal)}
+                ${row('Status', '<span style="color:#22c55e;font-weight:700;">Berhasil</span>')}`;
+        } else {
+            bodyRows = `
+                ${row('Pengirim', (d.senderName || '-') + '<br><span style="font-size:11px;color:#9ca3af;">' + (d.senderPhone || '') + '</span>')}
+                ${row('Penerima', (d.receiverName || '-') + '<br><span style="font-size:11px;color:#9ca3af;">' + (d.receiverPhone || '') + '</span>')}
+                ${row('Jumlah Diterima', fmtRp(item.amount))}
+                ${row('Saldo Sebelum', fmtRp(d.saldoBefore || 0))}
+                ${row('Saldo Sesudah', fmtRp(d.saldoAfter || 0))}
+                ${row('No. Referensi', refId)}
+                ${row('Tanggal', tanggal)}
+                ${row('Status', '<span style="color:#22c55e;font-weight:700;">Berhasil</span>')}`;
+        }
+
+        const showShare = item.type === 'transfer_out' && d.senderName;
+
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="history-detail-overlay"
+                style="position:fixed;inset:0;z-index:99999;
+                       background:rgba(0,0,0,0.4);
+                       display:flex;align-items:flex-end;">
+                <div id="history-detail-sheet"
+                    style="width:100%;background:#fff;border-radius:20px 20px 0 0;
+                           max-height:85vh;overflow-y:auto;
+                           transform:translateY(100%);transition:transform 0.3s ease;">
+                    <div style="display:flex;justify-content:center;padding:12px 0 4px;">
+                        <div style="width:40px;height:4px;background:#e0e0e0;border-radius:4px;"></div>
                     </div>
-                    <div style="text-align:right;flex-shrink:0;margin-left:8px;">
-                        <div class="font13 font-weight-bold" style="color:${getColor(item.type)};">
-                            ${item.amount ? getPrefix(item.type) + 'Rp ' + formatRupiah(item.amount) : ''}
+                    <div style="padding:0 20px 32px;">
+                        <div style="text-align:center;padding:8px 0 20px;">
+                            <div style="width:56px;height:56px;border-radius:50%;background:#f0fdf4;
+                                        display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+                                <i class="icon f7-icons" style="font-size:28px;color:${color};">
+                                    ${iconMap[item.type] || 'clock'}
+                                </i>
+                            </div>
+                            <div style="font-size:22px;font-weight:800;color:${color};">
+                                ${prefix}${fmtRp(item.amount)}
+                            </div>
+                            <div style="font-size:13px;color:#6b7280;margin-top:4px;">
+                                ${labelMap[item.type] || 'Transaksi'}
+                            </div>
                         </div>
+                        <div>${bodyRows}</div>
+                        ${showShare ? `
+                        <button id="history-btn-share"
+                            style="width:100%;margin-top:20px;padding:13px;border-radius:12px;
+                                   border:none;background:#25d366;color:#fff;
+                                   font-size:14px;font-weight:700;cursor:pointer;">
+                             Share Bukti WA
+                        </button>` : ''}
+                        <button id="history-btn-close"
+                            style="width:100%;margin-top:10px;padding:13px;border-radius:12px;
+                                   border:1px solid #e0e0e0;background:#fff;
+                                   font-size:14px;font-weight:600;color:#666;cursor:pointer;">
+                            Tutup
+                        </button>
+                        <canvas id="bukti-canvas" width="375" height="580" style="display:none;"></canvas>
                     </div>
                 </div>
-            `).join('');
+            </div>
+        `);
 
-        } catch (err) {
-            container.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;padding:60px 16px;">
-                    <i class="icon f7-icons font40 text-color-gray" style="margin-bottom:12px;">exclamationmark_circle</i>
-                    <div class="text-color-gray font14">Gagal memuat riwayat</div>
-                </div>`;
-            console.error('Gagal load history:', err);
+        setTimeout(() => {
+            document.getElementById('history-detail-sheet').style.transform = 'translateY(0)';
+        }, 10);
+
+        const closeSheet = () => {
+            const sheet = document.getElementById('history-detail-sheet');
+            if (sheet) sheet.style.transform = 'translateY(100%)';
+            setTimeout(() => document.getElementById('history-detail-overlay')?.remove(), 300);
+        };
+
+        document.getElementById('history-btn-close')?.addEventListener('click', closeSheet);
+        document.getElementById('history-detail-overlay')?.addEventListener('click', (e) => {
+            if (e.target.id === 'history-detail-overlay') closeSheet();
+        });
+
+        if (showShare) {
+            document.getElementById('history-btn-share')?.addEventListener('click', () => {
+                cetakBukti({
+                    senderName: d.senderName,
+                    senderPhone: d.senderPhone,
+                    receiverName: d.receiverName,
+                    receiverPhone: d.receiverPhone,
+                    amount: item.amount
+                }, (dataUrl) => {
+                    const message = `Transfer berhasil ${item.amount ? 'Rp ' + Number(item.amount).toLocaleString('id-ID') : ''} dari ${d.senderName || '-'} ke ${d.receiverName || '-'}.`;
+
+                    if (window.plugins && window.plugins.socialsharing) {
+                        if (window.plugins.socialsharing.shareViaWhatsApp) {
+                            window.plugins.socialsharing.shareViaWhatsApp(
+                                message,
+                                dataUrl,
+                                null,
+                                () => {},
+                                (err) => {
+                                    console.error('WA share error:', err);
+                                    $f7.toast.create({ text: '⚠️ Gagal membagikan ke WhatsApp', position: 'bottom', closeTimeout: 2000 }).open();
+                                }
+                            );
+                        } else {
+                            window.plugins.socialsharing.share(
+                                message,
+                                'Bukti Transfer DogiPay',
+                                dataUrl,
+                                null,
+                                () => {},
+                                (err) => {
+                                    console.error('Share error:', err);
+                                    $f7.toast.create({ text: '⚠️ Gagal membagikan bukti', position: 'bottom', closeTimeout: 2000 }).open();
+                                }
+                            );
+                        }
+                    } else if (navigator.share) {
+                        const byteString = atob(dataUrl.split(',')[1]);
+                        const ab = new ArrayBuffer(byteString.length);
+                        const ia = new Uint8Array(ab);
+                        for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+                        const blob = new Blob([ia], { type: 'image/png' });
+                        const file = new File([blob], 'bukti-transfer-dogipay.png', { type: 'image/png' });
+                        navigator.share({ files: [file], text: message })
+                            .catch(err => {
+                                console.error('Share error:', err);
+                                $f7.toast.create({ text: '⚠️ Gagal membagikan bukti', position: 'bottom', closeTimeout: 2000 }).open();
+                            });
+                    } else {
+                        $f7.dialog.alert('Fitur berbagi tidak tersedia di perangkat ini.', 'Tidak Tersedia');
+                    }
+                });
+            });
         }
-    }
+    };
 
-    $on('popupOpen', () => {
-        loadHistory();
-    });
+    function handleOpen() {
+        setTimeout(() => {
+            renderFilter();
+            loadHistory();
+        }, 100);
+    }
 
     return $render;
 }

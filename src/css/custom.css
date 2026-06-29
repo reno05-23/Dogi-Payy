@@ -1116,3 +1116,57 @@
   background: #f0fdf4;
   color: #1a7f5a;
 }
+
+.filter-chip {
+        border: 1px solid #e0e0e0;
+        background: #f5f5f5;
+        color: #666;
+        border-radius: 20px;
+        padding: 4px 10px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-width: min-content;
+    }
+    .filter-chip.active-chip {
+        background: #1a3c2e;
+        color: #fff;
+        border-color: #1a3c2e;
+    }
+    .history-filter-tabs {
+        scrollbar-width: none;
+    }
+    .history-filter-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    .history-filter-tab {
+        background: #f5f5f5;
+        color: #444;
+        border: 1px solid #e0e0e0;
+        border-radius: 999px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1 1 0;
+        min-width: 72px;
+    }
+    .history-filter-tab.active {
+        background: #1a3c2e;
+        color: #fff;
+        border-color: #1a3c2e;
+    }
+    .history-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .history-item:active {
+        background: #f9f9f9;
+    }

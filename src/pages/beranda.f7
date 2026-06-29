@@ -146,15 +146,12 @@
     let copyDone          = false;
     let isLoading         = false;
     let isRefreshingSaldo = false;
-    // let isLoadingHistory  = true;
-    // let history           = [];
     let saldoWatcher      = null;
     let lastTopupRefreshAt = 0;
     let topupCloseRefreshTimer = null;
     let topupRealtimeWatcher = null;
     let topupEventSource = null;
 
-    // â”€â”€ Format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function formatRupiah(angka) {
       return Number(angka).toLocaleString('id-ID');
     }
@@ -189,7 +186,6 @@
       }
     }
 
-    // â”€â”€ Refresh Saldo dari API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     async function refreshSaldo() {
       if (isRefreshingSaldo) return false;
       isRefreshingSaldo = true;
@@ -320,7 +316,6 @@
       }
     }
 
-    // â”€â”€ Load Riwayat dari API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     
   async function loadHistory() {
     console.log('[History] loadHistory called, container:', document.getElementById('beranda-history-container'));
@@ -384,14 +379,12 @@
       }
     }
 
-    // â”€â”€ Toggle Saldo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function toggleSaldo(e) {
       e.preventDefault();
       saldoVisible = !saldoVisible;
       $update();
     }
 
-    // â”€â”€ Copy Nomor HP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function copyPhone(e) {
       e.preventDefault();
       const doSuccess = () => {
@@ -422,7 +415,6 @@
       document.body.removeChild(el);
     }
 
-    // â”€â”€ Token Expired â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function handleExpired() {
       clearSession();
       localStorage.removeItem('has_logged_in');
@@ -433,7 +425,6 @@
       );
     }
 
-    // â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function doLogout() {
       $f7.dialog.confirm(
         'Kamu akan keluar dari DogiPay.',
@@ -445,8 +436,7 @@
         }
       );
     }
-// â”€â”€ Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// ── Lifecycle ──────────────────────────────────
+
 // ── Lifecycle ──────────────────────────────────
 function isTopupPopupCloseEvent(eventOrPopup) {
   if (eventOrPopup?.detail?.popupId === 'topup') return true;
@@ -470,8 +460,6 @@ function onTopupPopupOpened(eventOrPopup) {
 function onPageAfterIn() {
   refreshSaldo();
   startSaldoWatcher();
-  // startTopupEventSource();
-  // Delay loadHistory sedikit agar DOM beranda-history-container sudah ready
   setTimeout(() => loadHistory(), 100);
 }
 
@@ -490,19 +478,6 @@ $on('pageInit', () => {
   $f7.on('popup:closed', onTopupPopupClosed);
   window.addEventListener('dogipay-topup-opened', onTopupPopupOpened);
   window.addEventListener('dogipay-topup-closed', onTopupPopupClosed);
-
-  // window.addEventListener('dogipay-saldo-update', (e) => {
-  //   applySaldoUpdate(e.detail.saldoAfter);
-  //   loadHistory();
-  // });
-  // window.addEventListener('dogipay-transfer-sent', (e) => {
-  //   applySaldoUpdate(e.detail.saldoAfter);
-  //   loadHistory();
-  // });
-  // window.addEventListener('dogipay-transfer-received', (e) => {
-  //   applySaldoUpdate(e.detail.saldoAfter);
-  //   loadHistory();
-  // });
 
   $f7.on('tabShow', (tabEl) => {
     if (tabEl.id === 'view-beranda') {
