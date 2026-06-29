@@ -9,8 +9,20 @@
 <script>
 export default (props, { $f7, $on }) => {
 
-    const getUser = () => {
-        try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch(e) { return {}; }
+    const API_BASE = 'https://dogipay.renoaries.my.id/api';
+
+    const getToken = () => localStorage.getItem('token');
+
+    const apiFetch = async (path, options = {}) => {
+        const res = await fetch(API_BASE + path, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + getToken(),
+                ...(options.headers || {})
+            }
+        });
+        return res.json();
     };
 
     const formatRp = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
@@ -27,11 +39,22 @@ export default (props, { $f7, $on }) => {
                 </div>
                 <div style="font-size: 16px; font-weight: 500; color: var(--text-primary); margin-bottom: 8px;">Belum ada rencana tabungan</div>
                 <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 28px;">
-                    Buat rencana tabungan dan DogiPay akan otomatis memotong saldo kamu sesuai jadwal yang kamu atur.
+                    Buat rencana tabungan dan setor kapan saja sesuai kemampuan kamu. Saldo aman sampai target tercapai.
                 </div>
                 <button id="btn-buat-baru" class="button button-fill" style="background: #f97316; border-color: #f97316; border-radius: 10px; width: 100%; height: 48px; font-size: 15px;">
                     + Buat Tabungan
                 </button>
+            </div>
+        </div>
+    `;
+
+    const renderLoading = () => `
+        <div style="padding: 0 16px;">
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 18px; font-weight: 500; color: var(--text-primary);">Tabungan</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; padding: 48px 16px;">
+                <div style="font-size: 13px; color: var(--text-muted);">Memuat data tabungan...</div>
             </div>
         </div>
     `;
@@ -66,20 +89,20 @@ export default (props, { $f7, $on }) => {
 
             <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px;">
                 <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
-                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Cicilan per periode</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Estimasi per setor</div>
                     <div style="font-size: 15px; font-weight: 500; color: #f97316;">${formatRp(tabungan.cicilanPerPeriode)}</div>
                 </div>
                 <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
-                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Sisa cicilan</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Sisa setor</div>
                     <div style="font-size: 15px; font-weight: 500; color: #7c3aed;">${sisaCicilan} kali</div>
                 </div>
                 <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
-                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Frekuensi</div>
-                    <div style="font-size: 15px; font-weight: 500; color: var(--text-primary);">${frekLabel[tabungan.frekuensi] || '-'}</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Sudah disetor</div>
+                    <div style="font-size: 15px; font-weight: 500; color: var(--text-primary);">${tabungan.cicilansudah} kali</div>
                 </div>
                 <div style="background: var(--surface-1); border-radius: 8px; padding: 12px;">
-                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Batas min. saldo</div>
-                    <div style="font-size: 15px; font-weight: 500; color: var(--text-primary);">${formatRp(50000)}</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Frekuensi rencana</div>
+                    <div style="font-size: 15px; font-weight: 500; color: var(--text-primary);">${frekLabel[tabungan.frekuensi] || '-'}</div>
                 </div>
             </div>
 
@@ -87,7 +110,7 @@ export default (props, { $f7, $on }) => {
                 <i class="icon f7-icons" style="font-size: 20px; color: #7c3aed; margin-top: 1px; flex-shrink: 0;">info_circle</i>
                 <div style="font-size: 12px; color: #5b21b6; line-height: 1.5;">
                     <div style="font-weight: 500; font-size: 13px; margin-bottom: 2px;">Syarat penarikan</div>
-                    Penarikan ke saldo bisa dilakukan setelah tabungan mencapai ${formatRp(tabungan.target)}, atau kapan saja jika saldo tabungan sudah melebihi target.
+                    Setor kapan saja sesuai kemampuan kamu. Setelah terkumpul ${formatRp(tabungan.target)}, saldo tabungan bisa ditarik ke saldo utama.
                 </div>
             </div>
 
@@ -110,13 +133,18 @@ export default (props, { $f7, $on }) => {
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 24px;">
-                <button id="btn-batalkan" style="padding: 12px; border-radius: 8px; background: #fef2f2; color: #dc2626; font-size: 13px; font-weight: 500; border: 0.5px solid #fecaca; cursor: pointer;">
-                    Batalkan
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;">
+                <button id="btn-setor" type="button" style="padding: 14px; border-radius: 8px; background: #f97316; color: #fff; font-size: 14px; font-weight: 500; border: none; cursor: pointer;">
+                    + Setor ke Tabungan
                 </button>
-                <button id="btn-tarik" style="padding: 12px; border-radius: 8px; background: ${bisaTarik ? '#f0fdf4' : '#f5f5f4'}; color: ${bisaTarik ? '#16a34a' : '#a3a3a3'}; font-size: 13px; font-weight: 500; border: 0.5px solid ${bisaTarik ? '#bbf7d0' : '#e5e5e5'}; cursor: ${bisaTarik ? 'pointer' : 'not-allowed'};">
-                    ${bisaTarik ? 'Tarik saldo' : 'Belum bisa tarik'}
-                </button>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <button id="btn-batalkan" type="button" style="padding: 12px; border-radius: 8px; background: #fef2f2; color: #dc2626; font-size: 13px; font-weight: 500; border: 0.5px solid #fecaca; cursor: pointer;">
+                        Batalkan
+                    </button>
+                    <button id="btn-tarik" type="button" style="padding: 12px; border-radius: 8px; background: ${bisaTarik ? '#f0fdf4' : '#f5f5f4'}; color: ${bisaTarik ? '#16a34a' : '#a3a3a3'}; font-size: 13px; font-weight: 500; border: 0.5px solid ${bisaTarik ? '#bbf7d0' : '#e5e5e5'}; cursor: ${bisaTarik ? 'pointer' : 'not-allowed'};">
+                        ${bisaTarik ? 'Tarik saldo' : 'Belum bisa tarik'}
+                    </button>
+                </div>
             </div>
         </div>
         `;
@@ -127,7 +155,7 @@ export default (props, { $f7, $on }) => {
             <div style="background: var(--surface-2, #fff); border-radius: 20px 20px 0 0; padding: 20px 16px 32px; width: 100%;">
                 <div style="width: 36px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 0 auto 20px;"></div>
                 <div style="font-size: 17px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">Buat rencana tabungan</div>
-                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Saldo dipotong otomatis sesuai jadwal</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Setor kapan saja, tarik saat target tercapai</div>
 
                 <div style="margin-bottom: 14px;">
                     <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 6px;">Nama tabungan</div>
@@ -153,10 +181,10 @@ export default (props, { $f7, $on }) => {
                     <span style="font-size: 12px; color: #c2410c;">Cicilan per periode</span>
                     <span id="sheet-estimasi" style="font-size: 16px; font-weight: 500; color: #f97316;">Rp 0</span>
                 </div>
-                <button id="sheet-btn-simpan" class="button button-fill" style="background: #f97316; border-color: #f97316; border-radius: 10px; width: 100%; height: 48px; font-size: 15px; margin-bottom: 10px;">
+                <button id="sheet-btn-simpan" type="button" class="button button-fill" style="background: #f97316; border-color: #f97316; border-radius: 10px; width: 100%; height: 48px; font-size: 15px; margin-bottom: 10px;">
                     Simpan rencana
                 </button>
-                <button id="sheet-btn-batal" class="button button-outline" style="border-color: #f97316; color: #f97316; border-radius: 10px; width: 100%; height: 44px; font-size: 14px;">
+                <button id="sheet-btn-batal" type="button" class="button button-outline" style="border-color: #f97316; color: #f97316; border-radius: 10px; width: 100%; height: 44px; font-size: 14px;">
                     Batal
                 </button>
             </div>
@@ -194,24 +222,48 @@ export default (props, { $f7, $on }) => {
         if (!target || target < 10000) { $f7.toast.create({ text: 'Target minimal Rp 10.000', position: 'bottom', closeTimeout: 2000 }).open(); return; }
         if (!kali || kali < 1) { $f7.toast.create({ text: 'Jumlah cicilan minimal 1 kali', position: 'bottom', closeTimeout: 2000 }).open(); return; }
 
-        // TODO: kirim ke API backend
-        // const token = localStorage.getItem('token');
-        // const res = await fetch(`${API_BASE}/api/tabungan`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ nama, target, totalCicilan: kali, frekuensi }) });
-        // const data = await res.json();
+        const btnSimpan = document.getElementById('sheet-btn-simpan');
+        if (btnSimpan) { btnSimpan.disabled = true; btnSimpan.textContent = 'Menyimpan...'; }
 
-        document.getElementById('tabungan-sheet-overlay')?.remove();
-        $f7.toast.create({ text: 'Rencana tabungan berhasil dibuat!', position: 'bottom', closeTimeout: 2000 }).open();
-        render();
+        try {
+            const data = await apiFetch('/tabungan', {
+                method: 'POST',
+                body: JSON.stringify({ nama, target, totalCicilan: kali, frekuensi })
+            });
+
+            if (data.success) {
+                document.getElementById('tabungan-sheet-overlay')?.remove();
+                $f7.toast.create({ text: 'Rencana tabungan berhasil dibuat!', position: 'bottom', closeTimeout: 2000 }).open();
+                render();
+            } else {
+                $f7.toast.create({ text: data.message || 'Gagal membuat tabungan', position: 'bottom', closeTimeout: 3000 }).open();
+                if (btnSimpan) { btnSimpan.disabled = false; btnSimpan.textContent = 'Simpan rencana'; }
+            }
+        } catch (err) {
+            $f7.toast.create({ text: 'Tidak dapat terhubung ke server', position: 'bottom', closeTimeout: 3000 }).open();
+            if (btnSimpan) { btnSimpan.disabled = false; btnSimpan.textContent = 'Simpan rencana'; }
+        }
     };
 
     const batalkanTabungan = () => {
         $f7.dialog.confirm(
             'Tabungan akan dibatalkan dan saldo tabungan dikembalikan ke saldo utama.',
             'Batalkan Tabungan',
-            () => {
-                // TODO: API batalkan
-                $f7.toast.create({ text: 'Tabungan dibatalkan', position: 'bottom', closeTimeout: 2000 }).open();
-                render();
+            async () => {
+                $f7.dialog.preloader('Membatalkan tabungan...');
+                try {
+                    const data = await apiFetch('/tabungan/batalkan', { method: 'POST' });
+                    $f7.dialog.close();
+                    if (data.success) {
+                        $f7.toast.create({ text: 'Tabungan dibatalkan, saldo dikembalikan', position: 'bottom', closeTimeout: 2500 }).open();
+                        render();
+                    } else {
+                        $f7.dialog.alert(data.message || 'Gagal membatalkan tabungan', 'Error');
+                    }
+                } catch (err) {
+                    $f7.dialog.close();
+                    $f7.dialog.alert('Tidak dapat terhubung ke server', 'Error');
+                }
             }
         );
     };
@@ -220,35 +272,150 @@ export default (props, { $f7, $on }) => {
         $f7.dialog.confirm(
             'Saldo tabungan akan ditransfer ke saldo utama kamu.',
             'Tarik Saldo Tabungan',
-            () => {
-                // TODO: API tarik
-                $f7.toast.create({ text: 'Saldo berhasil ditarik', position: 'bottom', closeTimeout: 2000 }).open();
-                render();
+            async () => {
+                $f7.dialog.preloader('Menarik saldo...');
+                try {
+                    const data = await apiFetch('/tabungan/tarik', { method: 'POST' });
+                    $f7.dialog.close();
+                    if (data.success) {
+                        // Update saldo beranda otomatis
+                        const saldoAfter = parseFloat(data.saldo ?? data.saldoAfter);
+                        if (!isNaN(saldoAfter)) {
+                            const user = JSON.parse(localStorage.getItem('user') || '{}');
+                            user.saldo = saldoAfter;
+                            localStorage.setItem('user', JSON.stringify(user));
+                            window.dispatchEvent(new CustomEvent('dogipay-saldo-update', {
+                                detail: { saldoAfter: saldoAfter }
+                            }));
+                        }
+
+                        $f7.toast.create({ text: 'Saldo berhasil ditarik ke saldo utama!', position: 'bottom', closeTimeout: 2500 }).open();
+                        render();
+                    } else {
+                        $f7.dialog.alert(data.message || 'Gagal menarik saldo', 'Error');
+                    }
+                } catch (err) {
+                    $f7.dialog.close();
+                    $f7.dialog.alert('Tidak dapat terhubung ke server', 'Error');
+                }
             }
         );
     };
 
-    const render = () => {
+    const openSheetSetor = () => {
+        document.getElementById('setor-sheet-overlay')?.remove();
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="setor-sheet-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: flex-end;">
+                <div style="background: var(--surface-2, #fff); border-radius: 20px 20px 0 0; padding: 20px 16px 32px; width: 100%;">
+                    <div style="width: 36px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 0 auto 20px;"></div>
+                    <div style="font-size: 17px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">Setor ke Tabungan</div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Saldo akan dipindahkan dari saldo utama</div>
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 6px;">Nominal setor (IDR)</div>
+                        <input id="setor-amount" type="number" placeholder="Contoh: 100000" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 0.5px solid var(--border-strong); font-size: 14px; background: var(--surface-2); color: var(--text-primary); outline: none; box-sizing: border-box;">
+                    </div>
+                    <button id="setor-btn-simpan" type="button" class="button button-fill" style="background: #f97316; border-color: #f97316; border-radius: 10px; width: 100%; height: 48px; font-size: 15px; margin-bottom: 10px;">
+                        Setor Sekarang
+                    </button>
+                    <button id="setor-btn-batal" type="button" class="button button-outline" style="border-color: #f97316; color: #f97316; border-radius: 10px; width: 100%; height: 44px; font-size: 14px;">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        `);
+
+        const overlay = document.getElementById('setor-sheet-overlay');
+        const amountInput = document.getElementById('setor-amount');
+        const saveButton = document.getElementById('setor-btn-simpan');
+        const cancelButton = document.getElementById('setor-btn-batal');
+        if (!overlay || !amountInput || !saveButton || !cancelButton) return;
+
+        cancelButton.addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+        saveButton.addEventListener('click', async () => {
+            const amountValue = amountInput.value?.toString().replace(/[^0-9.]/g, '');
+            const amount = Math.round(parseFloat(amountValue) || 0);
+            if (!amount || amount < 1000) {
+                $f7.toast.create({ text: 'Minimal setor Rp 1.000', position: 'bottom', closeTimeout: 2000 }).open();
+                return;
+            }
+            saveButton.disabled = true;
+            saveButton.textContent = 'Memproses...';
+
+            try {
+                const data = await apiFetch('/tabungan/setor', {
+                    method: 'POST',
+                    body: JSON.stringify({ amount })
+                });
+                 console.log('[Tabungan] setor response:', JSON.stringify(data)); // ←
+                if (data.success) {
+                    overlay.remove();
+                    $f7.toast.create({ 
+                        text: data.isSelesai ? '🎉 Target tercapai! Tabungan selesai.' : 'Berhasil setor ke tabungan!', 
+                        position: 'bottom', 
+                        closeTimeout: 2500 
+                    }).open();
+
+                    const saldoAfter = parseFloat(data.saldo);                    
+                    if (!isNaN(saldoAfter)) {
+                        // Update localStorage dulu sebelum dispatch
+                        const user = JSON.parse(localStorage.getItem('user') || '{}');
+                        user.saldo = saldoAfter;
+                        localStorage.setItem('user', JSON.stringify(user));
+
+                        // Baru dispatch event
+                        window.dispatchEvent(new CustomEvent('dogipay-saldo-update', {
+                            detail: { saldoAfter: saldoAfter }
+                        }));
+                        console.log('[Tabungan] dispatched dogipay-saldo-update:', saldoAfter);
+                    }
+                    render();
+                } else {
+                    console.error('Setor tabungan failed:', data);
+                    $f7.toast.create({ text: data.message || 'Gagal setor', position: 'bottom', closeTimeout: 3000 }).open();
+                    saveButton.disabled = false;
+                    saveButton.textContent = 'Setor Sekarang';
+                }
+            } catch (err) {
+                console.error('Setor tabungan error:', err);
+                $f7.toast.create({ text: 'Tidak dapat terhubung ke server', position: 'bottom', closeTimeout: 3000 }).open();
+                saveButton.disabled = false;
+                saveButton.textContent = 'Setor Sekarang';
+            }
+        });
+    };
+
+    const render = async () => {
         const root = document.getElementById('tabungan-root');
         if (!root) return;
 
-        // TODO: ganti dengan data dari API
-        // const token = localStorage.getItem('token');
-        // const res = await fetch(`${API_BASE}/api/tabungan`, { headers: { Authorization: 'Bearer ' + token } });
-        // const data = await res.json();
-        // const tabungan = data.data;
+        root.innerHTML = renderLoading();
 
-        const tabungan = null; // ← ganti dengan data API nanti
+        try {
+            const data = await apiFetch('/tabungan');
+            const tabungan = data.success ? data.data : null;
 
-        if (!tabungan) {
-            root.innerHTML = renderEmpty();
-            document.getElementById('btn-buat-baru')?.addEventListener('click', openSheet);
-        } else {
-            root.innerHTML = renderActive(tabungan);
-            document.getElementById('btn-batalkan')?.addEventListener('click', batalkanTabungan);
-            if (tabungan.terkumpul >= tabungan.target) {
-                document.getElementById('btn-tarik')?.addEventListener('click', tarikSaldo);
+            if (!tabungan) {
+                root.innerHTML = renderEmpty();
+                document.getElementById('btn-buat-baru')?.addEventListener('click', openSheet);
+            } else {
+                root.innerHTML = renderActive(tabungan);
+                document.getElementById('btn-batalkan')?.addEventListener('click', batalkanTabungan);
+                document.getElementById('btn-setor')?.addEventListener('click', openSheetSetor); // tambah ini
+                if (tabungan.terkumpul >= tabungan.target) {
+                    document.getElementById('btn-tarik')?.addEventListener('click', tarikSaldo);
+                }
             }
+        } catch (err) {
+            root.innerHTML = `
+                <div style="padding: 32px 16px; text-align: center;">
+                    <i class="icon f7-icons" style="font-size: 36px; color: var(--text-muted);">wifi_slash</i>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-top: 12px;">Gagal memuat data tabungan</div>
+                    <button id="btn-retry" class="button button-outline" style="margin-top: 16px; border-color: #f97316; color: #f97316;">Coba lagi</button>
+                </div>
+            `;
+            document.getElementById('btn-retry')?.addEventListener('click', render);
         }
     };
 

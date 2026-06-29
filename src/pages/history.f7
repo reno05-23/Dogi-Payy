@@ -46,9 +46,9 @@ export default (props, { $f7 }) => {
             ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     };
 
-    const colorMap = { topup: '#22c55e', transfer_in: '#22c55e', transfer_out: '#ef4444' };
-    const iconMap  = { topup: 'plus_circle', transfer_in: 'arrow_down_circle', transfer_out: 'arrow_up_circle' };
-    const labelMap = { topup: 'Top Up', transfer_in: 'Transfer Masuk', transfer_out: 'Transfer Keluar' };
+    const colorMap = { topup: '#22c55e', transfer_in: '#22c55e', transfer_out: '#ef4444', system: '#f97316' };
+    const iconMap  = { topup: 'plus_circle', transfer_in: 'arrow_down_circle', transfer_out: 'arrow_up_circle', system: 'creditcard' };
+    const labelMap = { topup: 'Top Up', transfer_in: 'Transfer Masuk', transfer_out: 'Transfer Keluar', system: 'Tabungan' };
 
     // ── Render filter ──
     const renderFilter = () => {
@@ -60,6 +60,7 @@ export default (props, { $f7 }) => {
             { label: 'Top Up', type: 'topup' },
             { label: 'Masuk', type: 'transfer_in' },
             { label: 'Keluar', type: 'transfer_out' },
+            { label: 'Savings', type: 'system' },  // ← tambah ini
         ];
 
         el.innerHTML = `
@@ -254,6 +255,14 @@ export default (props, { $f7 }) => {
                 ${row('No. Referensi', refId)}
                 ${row('Tanggal', tanggal)}
                 ${row('Status', '<span style="color:#22c55e;font-weight:700;">Berhasil</span>')}`;
+        } else if (item.type === 'system') {
+            bodyRows = `
+                ${row('Keterangan', item.message || '-')}
+                ${item.amount ? row('Nominal', fmtRp(item.amount)) : ''}
+                ${row('No. Referensi', refId)}
+                ${row('Tanggal', tanggal)}
+                ${row('Status', '<span style="color:#22c55e;font-weight:700;">Berhasil</span>')}
+            `;
         } else {
             bodyRows = `
                 ${row('Pengirim', (d.senderName || '-') + '<br><span style="font-size:11px;color:#9ca3af;">' + (d.senderPhone || '') + '</span>')}
@@ -263,7 +272,8 @@ export default (props, { $f7 }) => {
                 ${row('Saldo Sesudah', fmtRp(d.saldoAfter || 0))}
                 ${row('No. Referensi', refId)}
                 ${row('Tanggal', tanggal)}
-                ${row('Status', '<span style="color:#22c55e;font-weight:700;">Berhasil</span>')}`;
+                ${row('Status', '<span style="color:#22c55e;font-weight:700;">Berhasil</span>')}
+            `;
         }
 
         const showShare = item.type === 'transfer_out' && d.senderName;
@@ -289,7 +299,7 @@ export default (props, { $f7 }) => {
                                 </i>
                             </div>
                             <div style="font-size:22px;font-weight:800;color:${color};">
-                                ${prefix}${fmtRp(item.amount)}
+                                ${item.type === 'system' ? (item.amount ? fmtRp(item.amount) : '') : prefix + fmtRp(item.amount)}
                             </div>
                             <div style="font-size:13px;color:#6b7280;margin-top:4px;">
                                 ${labelMap[item.type] || 'Transaksi'}

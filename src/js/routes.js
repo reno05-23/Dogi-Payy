@@ -14,6 +14,7 @@ import Fingerprint from '../pages/fingerprint.f7';
 import KonfirmasiTransfer from '../pages/konfirmasi_transfer.f7';
 import PinTransfer from '../pages/pin_transfer.f7';
 import StrukTransfer from '../pages/struk_transfer.f7';
+import EStatement from '../pages/e-statement.f7';
 
 var routes = [
   // Auth routes
@@ -39,7 +40,9 @@ var routes = [
   { path: '/tentang/', component: Tentang },
   { path: '/notifikasi/', component: Notifikasi },
   { path: '/history/', popup: { component: History } },
-  { path: '/topup/', popup: { component: Topup } }
+  { path: '/topup/', popup: { component: Topup } },
+  { path: '/e-statement/', component: EStatement }
+
 ];
 
 export default routes;

@@ -519,6 +519,7 @@ $on('pageBeforeRemove', () => {
 
 // Daftarkan event listener langsung, tidak bergantung pageInit
 window.addEventListener('dogipay-saldo-update', (e) => {
+   console.log('[Beranda] received dogipay-saldo-update:', e.detail);
   applySaldoUpdate(e.detail.saldoAfter);
   loadHistory();
 });
