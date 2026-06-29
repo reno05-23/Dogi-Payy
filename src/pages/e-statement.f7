@@ -779,8 +779,57 @@ const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF8AAABgCAYAA
 
             drawFooter();
 
-            doc.save('e-statement-' + activePeriod + '-' + from + '.pdf');
+            const pdfOutput = doc.output('arraybuffer');
+            const fileName = 'e-statement-' + activePeriod + '-' + from + '.pdf';
 
+            if (window.cordova && window.resolveLocalFileSystemURL) {
+                // Mode Cordova (HP)
+                const targetDir = cordova.file.externalRootDirectory + 'Download/';                
+                window.resolveLocalFileSystemURL(targetDir, function(dirEntry) {
+                    dirEntry.getFile(fileName, { create: true, exclusive: false }, function(fileEntry) {
+                        fileEntry.createWriter(function(fileWriter) {
+                            fileWriter.onwriteend = function() {
+                                $f7.toast.create({ 
+                                    text: 'PDF berhasil disimpan: ' + fileName, 
+                                    position: 'bottom', 
+                                    closeTimeout: 3000 
+                                }).open();
+
+                                // Buka PDF dengan app viewer
+                                if (cordova.plugins && cordova.plugins.fileOpener2) {
+                                    cordova.plugins.fileOpener2.open(
+                                        fileEntry.nativeURL,
+                                        'application/pdf',
+                                        {
+                                            error: function(e) {
+                                                console.error('Error opening PDF:', e);
+                                                $f7.dialog.alert('PDF tersimpan di: ' + fileEntry.nativeURL, 'PDF Tersimpan');
+                                            },
+                                            success: function() {
+                                                console.log('PDF opened successfully');
+                                            }
+                                        }
+                                    );
+                                } else {
+                                    $f7.dialog.alert('PDF tersimpan di folder Downloads aplikasi', 'PDF Tersimpan');
+                                }
+                            };
+                            fileWriter.onerror = function(e) {
+                                console.error('Write failed:', e);
+                                $f7.toast.create({ text: 'Gagal menyimpan PDF', position: 'bottom', closeTimeout: 2000 }).open();
+                            };
+                            fileWriter.write(new Blob([pdfOutput], { type: 'application/pdf' }));
+                        });
+                    });
+                }, function(err) {
+                    console.error('resolveLocalFileSystemURL error:', err);
+                    $f7.toast.create({ text: 'Gagal akses storage', position: 'bottom', closeTimeout: 2000 }).open();
+                });
+
+            } else {
+                // Mode browser (fallback)
+                doc.save(fileName);
+            }
 
         }
         $on('pageAfterIn', () => {

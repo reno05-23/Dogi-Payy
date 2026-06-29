@@ -3,30 +3,49 @@ const fs = require('fs');
 const path = require('path');
 
 const build = async () => {
-  // rebuild JS without modules
-  let entry = fs
-    .readdirSync(path.resolve(__dirname, '../cordova/www/assets'))
-    .filter((f) => f.includes('index-') && f.includes('.js'))[0];
-  const hash = entry.split('index-')[1].split('.js')[0];
+  const assetsDir = path.resolve(__dirname, '../cordova/www/assets');
+
+  // Cari SEMUA chunk .js (bukan font/css)
+  const allJs = fs.readdirSync(assetsDir).filter((f) => f.endsWith('.js'));
+
+  // Entry utama
+  const entryFile = allJs.find((f) => f.startsWith('index-'));
+  if (!entryFile) throw new Error('Entry file index-*.js tidak ditemukan');
+
+  const hash = entryFile.replace('index-', '').replace('.js', '');
+  const outputFile = `index-${hash}.js`;
+
+  console.log(`Bundling entry: ${entryFile}`);
+  console.log(`Chunks ditemukan: ${allJs.join(', ')}`);
 
   const bundle = await rollup.rollup({
-    input: path.resolve(__dirname, '../cordova/www/assets/', entry),
+    input: path.resolve(assetsDir, entryFile),
+    onwarn(warning, warn) {
+      if (warning.code === 'CIRCULAR_DEPENDENCY') return;
+      if (warning.code === 'EVAL') return;
+      warn(warning);
+    },
   });
+
   await bundle.write({
-    file: path.resolve(__dirname, '../cordova/www/assets/', `index-${hash}.js`),
+    file: path.resolve(assetsDir, outputFile),
     format: 'iife',
     name: 'MyApp',
     sourcemap: false,
+    inlineDynamicImports: true, // ← di output options
   });
 
-  // Remove old chunk files
-  fs.readdirSync(path.resolve(__dirname, '../cordova/www/assets')).forEach((f) => {
-    if (f.includes('.js') && f.split('.').length > 2 && f !== `index-${hash}.js`) {
-      fs.rmSync(path.resolve(__dirname, '../cordova/www/assets', f));
+  await bundle.close();
+
+  // Hapus semua .js lain kecuali output kita
+  allJs.forEach((f) => {
+    if (f !== outputFile) {
+      fs.rmSync(path.resolve(assetsDir, f));
+      console.log(`Removed: ${f}`);
     }
   });
 
-  // fix index.html
+  // Fix index.html
   const indexPath = path.resolve(__dirname, '../cordova/www/index.html');
   const indexContent = fs
     .readFileSync(indexPath, 'utf8')
@@ -35,11 +54,16 @@ const build = async () => {
       if (line.includes('<link rel="modulepreload"')) return '';
       if (line.includes('<script type="module"')) return '';
       if (line.includes('</body>'))
-        return `  <script src="assets/index-${hash}.js"></script>\n</body>`;
+        return `  <script src="assets/${outputFile}"></script>\n</body>`;
       return line;
     })
     .join('\n');
+
   fs.writeFileSync(indexPath, indexContent);
+  console.log('✅ Build Cordova selesai!');
 };
 
-build();
+build().catch((err) => {
+  console.error('❌ Build gagal:', err);
+  process.exit(1);
+});
