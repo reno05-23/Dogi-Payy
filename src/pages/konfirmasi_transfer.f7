@@ -1,0 +1,127 @@
+<template>
+    <div class="page" data-name="konfirmasi-transfer">
+        <div class="navbar no-shadow no-hairline" style="height: 70px;">
+            <div class="navbar-bg warna_dasar_sistem"></div>
+            <div class="navbar-inner warna_dasar_sistem">
+                <div class="left">
+                    <a href="#" class="link icon-only text-color-white" id="btn-konfirmasi-back">
+                        <i class="icon f7-icons font20">arrow_left</i>
+                    </a>
+                </div>
+                <div class="title text-color-white font16 font-weight-bold">Konfirmasi Transfer</div>
+                <div class="right"></div>
+            </div>
+        </div>
+
+        <div class="page-content" style="background-color: #f4f5f7;">
+
+            <!-- Kartu nominal besar -->
+            <div
+                style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 32px 24px 40px; text-align: center; border-radius: 0 0 24px 24px;">
+                <div class="font13" style="color: rgba(255,255,255,0.85);">Jumlah Transfer</div>
+                <div id="kt-nominal" class="font-weight-bold" style="color: #fff; font-size: 34px; margin-top: 6px;">Rp
+                    0</div>
+            </div>
+
+            <!-- Kartu tujuan -->
+            <div
+                style="margin: -24px 16px 0; background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); padding: 18px 16px; display: flex; align-items: center;">
+                <div
+                    style="width: 48px; height: 48px; border-radius: 50%; background: #fff7ed; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="icon f7-icons font24" style="color: #f97316;">person_alt_circle_fill</i>
+                </div>
+                <div style="margin-left: 14px; flex: 1; min-width: 0;">
+                    <div class="font11" style="color: #9ca3af;">Transfer ke</div>
+                    <div id="kt-nama" class="font16 font-weight-bold"
+                        style="color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</div>
+                    <div id="kt-hp" class="font13" style="color: #6b7280;">-</div>
+                </div>
+            </div>
+
+            <!-- Rincian -->
+            <div
+                style="margin: 16px 16px 0; background: #fff; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 4px 16px;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f1f2f4;">
+                    <div class="font13" style="color: #6b7280;">Nominal</div>
+                    <div id="kt-rincian-nominal" class="font14 font-weight-bold" style="color: #1a1a2e;">Rp 0</div>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f1f2f4;">
+                    <div class="font13" style="color: #6b7280;">Biaya Admin</div>
+                    <div class="font14 font-weight-bold" style="color: #1a1a2e;">Gratis</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 0;">
+                    <div class="font13" style="color: #6b7280;">Catatan</div>
+                    <div id="kt-catatan" class="font14" style="color: #1a1a2e; text-align: right; max-width: 65%;">-
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total -->
+            <div
+                style="margin: 16px 16px 0; background: #fff; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="font14 font-weight-bold" style="color: #1a1a2e;">Total Bayar</div>
+                    <div id="kt-total" class="font18 font-weight-bold" style="color: #f97316;">Rp 0</div>
+                </div>
+            </div>
+
+            <div
+                style="margin: 16px; display: flex; align-items: flex-start; background: #fff7ed; border-radius: 12px; padding: 12px;">
+                <i class="icon f7-icons font16" style="color: #f97316; margin-top: 1px;">info_circle_fill</i>
+                <div class="font12" style="color: #92400e; margin-left: 8px; line-height: 1.5;">
+                    Pastikan nama dan nominal penerima sudah benar. Transaksi yang sudah diproses tidak dapat
+                    dibatalkan.
+                </div>
+            </div>
+
+            <div style="height: 100px;"></div>
+        </div>
+
+        <!-- Tombol bawah -->
+        <div class="toolbar toolbar-bottom no-shadow">
+            <div class="toolbar-inner" style="padding: 0 16px;">
+                <a id="btn-lanjut-pin"
+                    class="button button-fill button-large button-round warna_dasar_sistem font-weight-bold"
+                    style="width: 100%;">
+                    Konfirmasi
+                </a>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+    export default (props, { $, $on, $f7, $f7router }) => {
+
+        var data = props.data || {};
+
+        function render() {
+            var fmtRp = function (n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); };
+
+            $('#kt-nominal').text(fmtRp(data.amount));
+            $('#kt-rincian-nominal').text(fmtRp(data.amount));
+            $('#kt-total').text(fmtRp(data.amount));
+            $('#kt-nama').text(data.name || 'Pengguna DogiPay');
+            $('#kt-hp').text(data.phone || '-');
+            $('#kt-catatan').text(data.catatan && data.catatan !== '-' ? data.catatan : 'Tidak ada catatan');
+        }
+
+        $on('pageInit', function () {
+            render();
+
+            $('#btn-konfirmasi-back').on('click', function () {
+                $f7router.back();
+            });
+
+            $('#btn-lanjut-pin').on('click', function () {
+                $f7router.navigate('/pin-transfer/', {
+                    props: { data: data }
+                });
+            });
+        });
+
+        return $render;
+    }
+</script>

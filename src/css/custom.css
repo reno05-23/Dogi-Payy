@@ -1,3 +1,14 @@
+* {
+    box-sizing: border-box !important;
+}
+
+body, html {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 .page-content {
   /* Sesuaikan padding-top dengan tinggi navbar Anda */
   padding-top: 70px !important;
@@ -925,8 +936,9 @@
 /* css scan */
 .qr-scanner-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 100vw !important;
+  max-width: 100% !important;
+  height: 100vh;
   background-color: transparent !important;
   display: flex;
   flex-direction: column;

@@ -2,40 +2,94 @@ import { Html5Qrcode } from "html5-qrcode";
 import qrcode from 'qrcode-generator';
 
 let html5QrCode;
+let isStarting = false;
 
 // /////////////////////////////////////////////
 //                 FUNGSI SCAN QR
 // ////////////////////////////////////////////
 
-export function scan_qr(callback) {
-    html5QrCode = new Html5Qrcode("kamera-reader");
+function _bersihkanInstance() {
+    if (!html5QrCode) return Promise.resolve();
 
-    const config = {
-        fps: 10,
-        aspectRatio: window.innerHeight / window.innerWidth
+    const instance = html5QrCode;
+    html5QrCode = null;
+
+    const selesai = () => {
+        try { instance.clear(); } catch (e) { /* abaikan, elemen mungkin sudah dihapus */ }
     };
 
-    html5QrCode.start(
-        { facingMode: "environment" },
-        config,
-        (decodedText) => {
-            html5QrCode.stop().then(() => {
-                callback(decodedText, null);
-            }).catch((err) => {
-                console.error("Gagal mematikan kamera", err);
-                callback(decodedText, null);
-            });
-        },
-        () => { }
-    ).catch(() => {
-        callback(null, "Gagal mengakses kamera. Pastikan izin kamera diberikan.");
+    if (instance.isScanning) {
+        return instance.stop().then(selesai).catch(selesai);
+    }
+    selesai();
+    return Promise.resolve();
+}
+
+export function scan_qr(callback) {
+    if (isStarting) return;
+    isStarting = true;
+
+    _bersihkanInstance().then(() => {
+        const reader = document.getElementById("kamera-reader");
+        if (!reader) {
+            isStarting = false;
+            callback(null, "Elemen kamera tidak ditemukan.");
+            return;
+        }
+
+        html5QrCode = new Html5Qrcode("kamera-reader");
+
+        const config = {
+            fps: 10,
+            aspectRatio: window.innerHeight / window.innerWidth
+        };
+
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+                isStarting = false;
+                _bersihkanInstance().then(() => {
+                    callback(decodedText, null);
+                });
+            },
+            () => { }
+        ).then(() => {
+            isStarting = false;
+        }).catch(() => {
+            isStarting = false;
+            html5QrCode = null;
+            callback(null, "Gagal mengakses kamera. Pastikan izin kamera diberikan.");
+        });
     });
 }
 
-export function stop_scan() {
-    if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(err => console.error("Error stopping", err));
-    }
+export function stop_scan(callback) {
+    isStarting = false;
+    _bersihkanInstance().then(() => {
+        if (typeof callback === 'function') callback();
+    });
+}
+
+export function scan_dari_file(file, onResult, onError) {
+    _bersihkanInstance().then(() => {
+        const reader = document.getElementById("kamera-reader");
+        if (!reader) {
+            onError && onError();
+            return;
+        }
+
+        html5QrCode = new Html5Qrcode("kamera-reader");
+
+        html5QrCode.scanFile(file, true)
+            .then((decodedText) => {
+                _bersihkanInstance().then(() => onResult(decodedText));
+            })
+            .catch((err) => {
+                console.error("Gagal membaca QR dari gambar", err);
+                _bersihkanInstance().then(() => { onError && onError(); });
+            });
+    });
 }
 
 export function parse_qris(payload) {
@@ -74,9 +128,31 @@ export function lookup_qr(qrCode, callback) {
         .catch(() => callback(0, { message: "Tidak dapat terhubung ke server" }));
 }
 
-export function transfer_saldo(receiverPhone, amount, catatan, callback) {
+export function buat_transfer_request(amount, catatan, callback) {
     var token = localStorage.getItem("token");
     var base_url = "https://dogipay.renoaries.my.id/api";
+
+    fetch(base_url + "/transfer-request", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ amount: amount, catatan: catatan })
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(result => callback(result.status, result.body))
+    .catch(() => callback(0, { message: "Tidak dapat terhubung ke server" }));
+}
+
+// FIX: tambah parameter qrTimestamp (opsional) untuk validasi expiry QR ClosePay di backend
+export function transfer_saldo(receiverPhone, amount, catatan, pin, callback, qrTimestamp, requestCode) {
+    var token = localStorage.getItem("token");
+    var base_url = "https://dogipay.renoaries.my.id/api";
+
+    var payload = { receiverPhone, amount, catatan, pin };
+    if (qrTimestamp) payload.qrTimestamp = qrTimestamp;
+    if (requestCode) payload.requestCode = requestCode; // Kirim ke backend jika ada
 
     fetch(base_url + "/transfer", {
         method: "POST",
@@ -84,7 +160,7 @@ export function transfer_saldo(receiverPhone, amount, catatan, callback) {
             "Content-Type": "application/json",
             "Authorization": "Bearer " + token
         },
-        body: JSON.stringify({ receiverPhone, amount, catatan })
+        body: JSON.stringify(payload)
     })
         .then(response => response.json().then(data => ({ status: response.status, body: data })))
         .then(result => callback(result.status, result.body))
@@ -99,6 +175,12 @@ let _trxNominal = '';
 let _trxCatatan = '';
 let _trxTimer = null;
 let _trxSeconds = 180;
+let _trxRequestCode = null;
+let _trxQrTimestamp = null;
+
+export function trxGetQrTimestamp() {
+    return _trxQrTimestamp;
+}
 
 export function trxFormatRp(n) {
     if (!n) return 'Rp 0';
@@ -168,7 +250,9 @@ export function trxRenderQR() {
         console.error('[TRX] Gagal parse user dari localStorage', e);
     }
 
-    const qrData = `DOGIPAY|CLOSEPAY|PHONE:${userPhone}|NOM:${_trxNominal}|CAT:${_trxCatatan}|TS:${Date.now()}`;
+    // FIX: simpan timestamp ke variabel module sehingga bisa dikirim ke backend
+    _trxQrTimestamp = Date.now();
+    const qrData = `DOGIPAY|REQ|${_trxRequestCode}|PHONE:${userPhone}|NOM:${_trxNominal}|CAT:${_trxCatatan}|TS:${_trxQrTimestamp}`;
     try {
         const qr = qrcode(0, 'M');
         qr.addData(qrData);
@@ -214,12 +298,17 @@ export function trxStartTimer($f7) {
         _trxSeconds--;
         if (_trxSeconds <= 0) {
             _trxSeconds = 180;
-            trxRenderQR();
-            $f7.toast.create({
-                text: '🔄 QR Code diperbarui otomatis',
-                position: 'bottom',
-                closeTimeout: 1500,
-            }).open();
+            buat_transfer_request(_trxNominal, _trxCatatan, function(status, res) {
+                if (status === 201) {
+                    _trxRequestCode = res.data.requestCode;
+                    trxRenderQR();
+                    $f7.toast.create({
+                        text: '🔄 QR Code diperbarui otomatis',
+                        position: 'bottom',
+                        closeTimeout: 1500,
+                    }).open();
+                }
+            });
         }
         _trxUpdateTimerUI();
     }, 1000);
@@ -239,27 +328,34 @@ function _trxUpdateTimerUI() {
 
 export function trxBuatQR($f7) {
     if (!_trxNominal || parseInt(_trxNominal) < 1000) {
-        $f7.toast.create({
-            text: '⚠️ Masukkan nominal minimal Rp 1.000',
-            position: 'bottom',
-            closeTimeout: 2000,
-        }).open();
+        $f7.toast.create({ text: '⚠️ Masukkan nominal minimal Rp 1.000', position: 'bottom', closeTimeout: 2000 }).open();
         return;
     }
 
     const catatanField = document.getElementById('trx-catatan-field');
     if (catatanField) _trxCatatan = catatanField.value;
 
-    document.getElementById('trx-qr-nominal').textContent = trxFormatRp(_trxNominal);
-    document.getElementById('trx-qr-catatan').textContent = _trxCatatan || '';
-    document.getElementById('trx-detail-nominal').textContent = trxFormatRp(_trxNominal);
-    document.getElementById('trx-detail-catatan').textContent = _trxCatatan || '-';
+    $f7.dialog.preloader('Membuat QR Code...');
 
-    trxGoToStep(2, $f7);
-    setTimeout(() => {
-        trxRenderQR();
-        trxStartTimer($f7);
-    }, 50);
+    buat_transfer_request(_trxNominal, _trxCatatan, function(status, res) {
+        $f7.dialog.close();
+        if (status === 201 && res.success) {
+            _trxRequestCode = res.data.requestCode; // Simpan kode unik dari database
+            
+            document.getElementById('trx-qr-nominal').textContent = trxFormatRp(_trxNominal);
+            document.getElementById('trx-qr-catatan').textContent = _trxCatatan || '';
+            document.getElementById('trx-detail-nominal').textContent = trxFormatRp(_trxNominal);
+            document.getElementById('trx-detail-catatan').textContent = _trxCatatan || '-';
+
+            trxGoToStep(2, $f7);
+            setTimeout(() => {
+                trxRenderQR();
+                trxStartTimer($f7);
+            }, 50);
+        } else {
+            $f7.dialog.alert(res.message || 'Gagal membuat QR Transfer', 'Error');
+        }
+    });
 }
 
 // //////////////////////////////////////////
@@ -408,6 +504,7 @@ export function trxResetForm($f7) {
     trxStopTimer();
     _trxNominal = '';
     _trxCatatan = '';
+    _trxQrTimestamp = null; // FIX: reset timestamp
 
     const input = document.getElementById('trx-input-nominal');
     if (input) input.value = '';

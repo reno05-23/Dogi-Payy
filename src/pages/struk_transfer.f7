@@ -1,0 +1,175 @@
+<template>
+    <div class="page" data-name="struk-transfer">
+        <div class="navbar no-shadow no-hairline" style="height: 70px;">
+            <div class="navbar-bg warna_dasar_sistem"></div>
+            <div class="navbar-inner warna_dasar_sistem">
+                <div class="title text-color-white font16 font-weight-bold">Bukti Transfer</div>
+            </div>
+        </div>
+
+        <div class="page-content" style="background-color: #f4f5f7;">
+
+            <div style="text-align: center; padding: 24px 0 8px;">
+                <div style="width: 64px; height: 64px; border-radius: 50%; background: #22c55e; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                    <i class="icon f7-icons font28" style="color: #fff;">checkmark_alt</i>
+                </div>
+                <div class="font18 font-weight-bold" style="color: #15803d; margin-top: 12px;">Transfer Berhasil</div>
+            </div>
+
+            <!-- Gambar struk -->
+            <div style="margin: 16px 24px; box-shadow: 0 6px 20px rgba(0,0,0,0.12); border-radius: 12px; overflow: hidden;">
+                <img id="struk-image" src="" style="width: 100%; display: block;" />
+            </div>
+
+            <canvas id="bukti-canvas" width="400" height="570" style="display: none;"></canvas>
+
+            <div style="height: 110px;"></div>
+        </div>
+
+        <!-- Tombol aksi bawah -->
+        <div style="position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 12px 16px; box-shadow: 0 -4px 16px rgba(0,0,0,0.06); z-index: 10;">
+            <div style="display: flex; gap: 10px;">
+                <a id="btn-struk-cetak" class="button button-large button-round" style="flex: 1; background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa;">
+                    <i class="icon f7-icons font18 margin-right-xs">printer</i>
+                    Cetak
+                </a>
+                <a id="btn-struk-share" class="button button-large button-round" style="flex: 1; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">
+                    <i class="icon f7-icons font18 margin-right-xs">square_arrow_up</i>
+                    Bagikan
+                </a>
+            </div>
+            <a id="btn-struk-selesai" class="button button-fill button-large button-round warna_dasar_sistem font-weight-bold" style="margin-top: 10px;">
+                Selesai
+            </a>
+        </div>
+    </div>
+</template>
+
+<script>
+    import * as fungsi from '../js/function.js';
+
+    export default (props, { $, $on, $f7, $f7router }) => {
+
+        var dataBukti = props.data || {};
+        var imageUrl = '';
+
+        function buatStruk() {
+            fungsi.cetakBukti(dataBukti, function (url) {
+                imageUrl = url;
+                $('#struk-image').attr('src', url);
+            });
+        }
+
+        function cetakBluetooth() {
+            if (!window.bluetoothSerial) {
+                $f7.dialog.alert('Plugin Bluetooth tidak tersedia di perangkat ini.', 'Tidak Tersedia');
+                return;
+            }
+
+            window.bluetoothSerial.isConnected(
+                function () {
+                    var teks = fungsi.formatStrukBluetooth(dataBukti);
+                    window.bluetoothSerial.write(
+                        teks,
+                        function () {
+                            $f7.toast.create({ text: '✅ Struk berhasil dicetak', position: 'bottom', closeTimeout: 2000 }).open();
+                        },
+                        function (err) {
+                            console.error('Bluetooth write error:', err);
+                            $f7.dialog.alert('Gagal mengirim data ke printer. Coba lagi.', 'Gagal Cetak');
+                        }
+                    );
+                },
+                function () {
+                    $f7.dialog.confirm(
+                        'Printer Bluetooth belum terhubung.\nMau pilih printer sekarang?',
+                        'Printer Tidak Terhubung',
+                        function () { pilihPrinterBluetooth(); }
+                    );
+                }
+            );
+        }
+
+        function pilihPrinterBluetooth() {
+            window.bluetoothSerial.list(
+                function (devices) {
+                    if (!devices || devices.length === 0) {
+                        $f7.dialog.alert(
+                            'Tidak ada perangkat Bluetooth yang sudah dipasangkan.\nPasangkan printer di Pengaturan Bluetooth HP terlebih dahulu.',
+                            'Tidak Ada Perangkat'
+                        );
+                        return;
+                    }
+
+                    var buttons = devices.map(function (dev) {
+                        return {
+                            text: dev.name || dev.address,
+                            onClick: function () {
+                                $f7.preloader.show();
+                                window.bluetoothSerial.connect(
+                                    dev.address,
+                                    function () {
+                                        $f7.preloader.hide();
+                                        $f7.toast.create({ text: '🖨️ Terhubung ke ' + (dev.name || dev.address), position: 'bottom', closeTimeout: 1500 }).open();
+                                        cetakBluetooth();
+                                    },
+                                    function (err) {
+                                        $f7.preloader.hide();
+                                        console.error('BT connect error:', err);
+                                        $f7.dialog.alert('Gagal terhubung ke ' + (dev.name || dev.address), 'Koneksi Gagal');
+                                    }
+                                );
+                                return false;
+                            }
+                        };
+                    });
+
+                    buttons.push({ text: 'Batal', color: 'red' });
+                    $f7.dialog.create({ title: 'Pilih Printer', buttons: buttons, verticalButtons: true }).open();
+                },
+                function (err) {
+                    console.error('BT list error:', err);
+                    $f7.dialog.alert('Gagal mengambil daftar perangkat Bluetooth.', 'Error');
+                }
+            );
+        }
+
+        function bagikanStruk() {
+            if (!imageUrl) return;
+
+            if (window.plugins && window.plugins.socialsharing) {
+                window.plugins.socialsharing.share(
+                    'Saya telah berhasil mengirimkan ' + fungsi.trxFormatRp(dataBukti.amount) + ' ke rekening ' + (dataBukti.receiverName || '-') + ' melalui DogiPay',
+                    'Struk Transfer',
+                    imageUrl,
+                    null,
+                    function () { },
+                    function (err) {
+                        console.error('Share error:', err);
+                        $f7.toast.create({ text: '⚠️ Gagal membagikan struk', position: 'bottom', closeTimeout: 2000 }).open();
+                    }
+                );
+            } else {
+                $f7.dialog.alert('Fitur berbagi tidak tersedia di perangkat ini.', 'Tidak Tersedia');
+            }
+        }
+
+        $on('pageInit', function () {
+            buatStruk();
+
+            $('#btn-struk-cetak').on('click', cetakBluetooth);
+            $('#btn-struk-share').on('click', bagikanStruk);
+            $('#btn-struk-selesai').on('click', function () {
+                $f7router.navigate('/', { reloadAll: true });
+            });
+        });
+
+        $on('pageBeforeRemove', function () {
+            $('#btn-struk-cetak').off('click');
+            $('#btn-struk-share').off('click');
+            $('#btn-struk-selesai').off('click');
+        });
+
+        return $render;
+    }
+</script>

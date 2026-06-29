@@ -1,0 +1,242 @@
+<template>
+    <div class="page" data-name="pin-transfer">
+        <div class="navbar no-shadow no-hairline" style="height: 70px;">
+            <div class="navbar-bg warna_dasar_sistem"></div>
+            <div class="navbar-inner warna_dasar_sistem">
+                <div class="left">
+                    <a href="#" class="link icon-only text-color-white" id="btn-pin-back">
+                        <i class="icon f7-icons font20">arrow_left</i>
+                    </a>
+                </div>
+                <div class="title text-color-white font16 font-weight-bold">Masukkan PIN</div>
+                <div class="right"></div>
+            </div>
+        </div>
+
+        <div class="page-content" style="background-color: #fff;">
+
+            <div style="text-align: center; padding: 28px 24px 8px;">
+                <div class="font14" style="color: #6b7280;">Transfer ke</div>
+                <div id="pin-nama" class="font18 font-weight-bold" style="color: #1a1a2e; margin-top: 4px;">-</div>
+                <div id="pin-nominal" class="font22 font-weight-bold" style="color: #f97316; margin-top: 6px;">Rp 0</div>
+            </div>
+
+            <div class="font13" style="text-align: center; color: #9ca3af; margin-top: 16px;">
+                Masukkan PIN DogiPay (6 digit)
+            </div>
+
+            <!-- Indikator dot PIN -->
+            <div id="pin-dots" style="display: flex; justify-content: center; gap: 16px; margin: 24px 0 8px;">
+                <span class="pin-dot" data-i="0"></span>
+                <span class="pin-dot" data-i="1"></span>
+                <span class="pin-dot" data-i="2"></span>
+                <span class="pin-dot" data-i="3"></span>
+                <span class="pin-dot" data-i="4"></span>
+                <span class="pin-dot" data-i="5"></span>
+            </div>
+
+            <div id="pin-error" class="font12" style="text-align: center; color: #ef4444; min-height: 18px; margin-bottom: 8px;"></div>
+            <div id="pin-sisa-percobaan" class="font11" style="text-align: center; color: #9ca3af; min-height: 16px; margin-bottom: 4px;"></div>
+
+            <!-- Keypad numerik -->
+            <div id="pin-keypad" style="max-width: 320px; margin: 16px auto 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 24px;">
+                <a class="pin-key" data-key="1">1</a>
+                <a class="pin-key" data-key="2">2</a>
+                <a class="pin-key" data-key="3">3</a>
+                <a class="pin-key" data-key="4">4</a>
+                <a class="pin-key" data-key="5">5</a>
+                <a class="pin-key" data-key="6">6</a>
+                <a class="pin-key" data-key="7">7</a>
+                <a class="pin-key" data-key="8">8</a>
+                <a class="pin-key" data-key="9">9</a>
+                <a class="pin-key pin-key-empty"></a>
+                <a class="pin-key" data-key="0">0</a>
+                <a class="pin-key" id="pin-key-del">
+                    <i class="icon f7-icons font22">delete_left</i>
+                </a>
+            </div>
+
+        </div>
+    </div>
+</template>
+
+<style>
+    .pin-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid #d1d5db;
+        background: transparent;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .pin-dot.filled {
+        background: #f97316;
+        border-color: #f97316;
+    }
+    .pin-dot.shake-error {
+        border-color: #ef4444;
+    }
+    .pin-key {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 64px;
+        font-size: 24px;
+        font-weight: 600;
+        color: #1a1a2e;
+        border-radius: 50%;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .pin-key:active {
+        background: #f3f4f6;
+    }
+    .pin-key-empty {
+        pointer-events: none;
+    }
+</style>
+
+<script>
+    import * as fungsi from '../js/function.js';
+
+    export default (props, { $, $on, $f7, $f7router }) => {
+
+        var data = props.data || {};
+        var pin = '';
+        var processing = false;
+        var attemptCount = 0;
+        var maxAttempt = 3;
+
+        function renderDots() {
+            for (var i = 0; i < 6; i++) {
+                var dot = $('.pin-dot[data-i="' + i + '"]');
+                if (i < pin.length) dot.addClass('filled');
+                else dot.removeClass('filled');
+            }
+        }
+
+        function showError(msg) {
+            $('#pin-error').text(msg || '');
+            if (msg) {
+                $('#pin-dots').addClass('shake-error');
+                setTimeout(function () { $('#pin-dots').removeClass('shake-error'); }, 300);
+            }
+        }
+
+        function resetPin() {
+            pin = '';
+            renderDots();
+        }
+
+        function tambahDigit(d) {
+            if (processing) return;
+            if (pin.length >= 6) return;
+            pin += d;
+            showError('');
+            renderDots();
+            if (pin.length === 6) {
+                setTimeout(submitPin, 150);
+            }
+        }
+
+        function hapusDigit() {
+            if (processing) return;
+            pin = pin.slice(0, -1);
+            renderDots();
+        }
+
+        function submitPin() {
+            processing = true;
+            $f7.preloader.show();
+
+            var qrTimestamp = data.qrTimestamp || null;
+            var requestCode = data.requestCode || null;
+
+            fungsi.transfer_saldo(data.phone, data.amount, data.catatan || '', pin, function (status, body) {
+                $f7.preloader.hide();
+                processing = false;
+
+                if (status === 200) {
+                    var apiData = body.data || {};
+                    var senderPhone = '';
+                    try {
+                        var user = JSON.parse(localStorage.getItem('user'));
+                        senderPhone = user ? user.phone : '';
+                    } catch (e) { }
+
+                    var dataBukti = {
+                        senderName: apiData.senderName || '-',
+                        senderPhone: senderPhone,
+                        receiverName: apiData.receiverName || data.name || data.phone,
+                        receiverPhone: data.phone,
+                        amount: apiData.amount || data.amount,
+                        catatan: data.catatan || 'Transfer via QRIS',
+                        saldoTerbaru: apiData.saldoTerbaru != null ? apiData.saldoTerbaru : null
+                    };
+
+                    $f7router.navigate('/struk-transfer/', {
+                        props: { data: dataBukti }
+                    });
+                    return;
+                }
+
+                if (status === 401) {
+                    attemptCount++;
+                    var sisa = maxAttempt - attemptCount;
+
+                    if (sisa <= 0) {
+                        $f7.dialog.alert(
+                            'Kamu sudah 3 kali salah memasukkan PIN. Transfer dibatalkan demi keamanan akunmu.',
+                            'PIN Salah 3 Kali',
+                            function () {
+                                $f7router.navigate('/', { reloadAll: true });
+                            }
+                        );
+                        return;
+                    }
+
+                    showError('PIN salah, coba lagi');
+                    $('#pin-sisa-percobaan').text('Sisa kesempatan: ' + sisa + ' kali');
+                    resetPin();
+                    return;
+                }
+
+                if (status === 400 && body.message && body.message.toLowerCase().indexOf('saldo') !== -1) {
+                    $f7.dialog.alert('Saldo kamu tidak cukup untuk melakukan transfer ini', 'Saldo Tidak Cukup', function () {
+                        $f7router.navigate('/', { reloadAll: true });
+                    });
+                    return;
+                }
+
+                if (status === 403) {
+                    $f7.dialog.alert('Sesi telah berakhir, silahkan login ulang', 'Sesi Habis', function () {
+                        localStorage.removeItem('token');
+                        $f7router.navigate('/login/', { reloadAll: true });
+                    });
+                    return;
+                }
+
+                $f7.dialog.alert(body.message || 'Transfer gagal, silahkan coba lagi', 'Gagal', function () {
+                    $f7router.navigate('/', { reloadAll: true });
+                });
+            }, qrTimestamp, requestCode);
+        }
+
+        $on('pageInit', function () {
+            $('#pin-nama').text(data.name || data.phone || '-');
+            $('#pin-nominal').text('Rp ' + Number(data.amount || 0).toLocaleString('id-ID'));
+
+            $('#btn-pin-back').on('click', function () {
+                $f7router.back();
+            });
+
+            $('.pin-key[data-key]').on('click', function () {
+                tambahDigit($(this).attr('data-key'));
+            });
+
+            $('#pin-key-del').on('click', hapusDigit);
+        });
+
+        return $render;
+    }
+</script>

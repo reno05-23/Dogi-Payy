@@ -11,6 +11,9 @@ import Notifikasi from '../pages/notifikasi.f7';
 import Login from '../pages/login.f7';
 import Register from '../pages/register.f7';
 import Fingerprint from '../pages/fingerprint.f7';
+import KonfirmasiTransfer from '../pages/konfirmasi_transfer.f7';
+import PinTransfer from '../pages/pin_transfer.f7';
+import StrukTransfer from '../pages/struk_transfer.f7';
 
 var routes = [
   // Auth routes
@@ -30,6 +33,9 @@ var routes = [
     ]
   },
   { path: '/qris/', component: Qris },
+  { path: '/konfirmasi-transfer/', component: KonfirmasiTransfer },
+  { path: '/pin-transfer/', component: PinTransfer },
+  { path: '/struk-transfer/', component: StrukTransfer },
   { path: '/tentang/', component: Tentang },
   { path: '/notifikasi/', component: Notifikasi },
   { path: '/history/', popup: { component: History } },
