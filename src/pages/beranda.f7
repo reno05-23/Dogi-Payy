@@ -457,6 +457,18 @@ function onTopupPopupOpened(eventOrPopup) {
   if (!isTopupPopupCloseEvent(eventOrPopup)) return;
 }
 
+function handleTabShow(tabEl) {
+  if (tabEl.id === 'view-beranda') {
+    console.log('[Beranda] tab:show fired');
+    onPageAfterIn();
+  }
+}
+function handleTabHide(tabEl) {
+  if (tabEl.id === 'view-beranda') {
+    onPageBeforeOut();
+  }
+}
+
 function onPageAfterIn() {
   refreshSaldo();
   startSaldoWatcher();
@@ -479,18 +491,9 @@ $on('pageInit', () => {
   window.addEventListener('dogipay-topup-opened', onTopupPopupOpened);
   window.addEventListener('dogipay-topup-closed', onTopupPopupClosed);
 
-  $f7.on('tabShow', (tabEl) => {
-    if (tabEl.id === 'view-beranda') {
-      console.log('[Beranda] tab:show fired');
-      onPageAfterIn();
-    }
-  });
+  $f7.on('tabShow', handleTabShow);
+  $f7.on('tabHide', handleTabHide);
 
-  $f7.on('tabHide', (tabEl) => {
-    if (tabEl.id === 'view-beranda') {
-      onPageBeforeOut();
-    }
-  });
 
   const berandaTab = document.getElementById('view-beranda');
   if (berandaTab && berandaTab.classList.contains('tab-active')) {
@@ -509,6 +512,8 @@ $on('pageBeforeRemove', () => {
   $f7.off('popup:open', onTopupPopupOpened);
   $f7.off('popupClosed', onTopupPopupClosed);
   $f7.off('popup:closed', onTopupPopupClosed);
+  $f7.off('tabShow', handleTabShow);   
+  $f7.off('tabHide', handleTabHide);
   window.removeEventListener('dogipay-topup-opened', onTopupPopupOpened);
   window.removeEventListener('dogipay-topup-closed', onTopupPopupClosed);
   if (topupCloseRefreshTimer) clearTimeout(topupCloseRefreshTimer);
